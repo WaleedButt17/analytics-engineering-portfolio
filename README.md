@@ -13,6 +13,8 @@ Waleed Butt. I build data pipelines and reporting for ecommerce, subscription an
 | [Stripe Revenue Analytics](03-stripe-revenue-analytics/) | n8n loads 4 Stripe endpoints into BigQuery every night; 18 views for true net revenue after fees, refunds and disputes, cohorts, LTV and refund patterns; 10 page Looker Studio report |
 | [Ecommerce Automation and Profit Dashboard](04-ecommerce-profit-dashboard/) | Apps Script scoring engine that ranks a 2,900 product supplier catalog, Make flows to list and delist on Shopify, contribution margin per order line in BigQuery, and a profit dashboard that caught products sold at a loss |
 | [Mobile App Analytics](05-mobile-app-analytics/) | GA4 app export and 3 ad platforms in BigQuery; 24 views from ad spend to install, signup, engagement, creator activity and paid orders; retention rebuilt after finding background push notifications counted as returns; 12 section Looker Studio report |
+| [Multi-Brand Marketing Data Layer (Healthcare)](06-multi-brand-marketing-data-layer/) | Audit and rebuild of a Windsor.ai to BigQuery layer for 8 brands of a large healthcare company: staging, campaign and UTM mapping, deduplicated reach, attribution, rollups and tables for an AI reporting agent, with every brand reconciled against the source; 50 SQL files and Apps Script reports |
+| [Telecom Sales and Marketing Data Layer](07-telecom-sales-and-marketing-data-layer/) | Salesforce sales from Google Sheets, ad spend and GA4 in one BigQuery model, with weekly, biweekly and monthly results by market and nationally, before and after QC against the old model, and tables for an AI reporting agent |
 
 
 

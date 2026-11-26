@@ -1,0 +1,1396 @@
+{
+  "name": "Stripe daily load to BigQuery",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 1
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -224,
+        304
+      ],
+      "id": "5aa38562-9061-4551-9aab-f244d95a1274",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\n\nconst easternFormatter = new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/New_York',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit'\n});\n\nconst parts = easternFormatter.formatToParts(now);\nconst year  = parseInt(parts.find(p => p.type === 'year').value);\nconst month = parseInt(parts.find(p => p.type === 'month').value) - 1;\nconst day   = parseInt(parts.find(p => p.type === 'day').value);\n\nconst noonUTC = new Date(Date.UTC(year, month, day, 12, 0, 0));\nconst easternHour = parseInt(new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/New_York',\n  hour: 'numeric',\n  hour12: false\n}).format(noonUTC));\n\nconst offsetHours = 12 - easternHour;\nconst startUTC = Date.UTC(year, month, day - 1, offsetHours, 0, 0);\nconst endUTC   = startUTC + (24 * 60 * 60 * 1000) - 1000;\n\nfor (const item of $input.all()) {\n  item.json.yesterday_start_unix = Math.floor(startUTC / 1000);\n  item.json.yesterday_end_unix   = Math.floor(endUTC   / 1000);\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        0
+      ],
+      "id": "fbba3575-418e-4428-a44e-6c459b40a7b4",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.stripe.com/v1/balance_transactions?limit=1000&created[gte]={{ $json.yesterday_start_unix }}&created[lte]={{ $json.yesterday_end_unix }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "starting_after",
+                    "value": "={{ $response.body.data[$response.body.data.length - 1].id }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.has_more === false }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        0
+      ],
+      "id": "739870eb-5ec7-4828-95fb-76a17cbfd50d",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "STRIPE_CREDENTIAL_ID",
+          "name": "Stripe API (restricted read key)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        464,
+        0
+      ],
+      "id": "9ba61387-ef22-434f-921f-7a020200816b",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ed7a6446-3aee-4db0-ae25-e284323b291d",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "6eea115a-c6e7-4f09-a97b-d4613fead0ac",
+              "name": "amount",
+              "value": "={{ $json.amount }}",
+              "type": "number"
+            },
+            {
+              "id": "63419bec-9881-4679-b308-1505e8bbc226",
+              "name": "available_on",
+              "value": "={{ $json.available_on }}",
+              "type": "number"
+            },
+            {
+              "id": "0a0f0513-596f-4ac6-99a6-1418ea5fb9f5",
+              "name": "balance_type",
+              "value": "={{ $json.balance_type }}",
+              "type": "string"
+            },
+            {
+              "id": "5adb48b0-84e6-4dbc-bc1d-30ecdfe57fa6",
+              "name": "created_date",
+              "value": "={{ DateTime.fromSeconds($json.created).toISODate() }}",
+              "type": "string"
+            },
+            {
+              "id": "1c5dd72d-015b-48f9-9793-31c7143ed1f6",
+              "name": "created",
+              "value": "={{ $json.created }}",
+              "type": "number"
+            },
+            {
+              "id": "2ed0bead-e27e-4518-9f47-5a9099deba81",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "59cda8f2-8845-462e-9344-75748fe86c7a",
+              "name": "description",
+              "value": "={{ $json.description }}",
+              "type": "string"
+            },
+            {
+              "id": "0f255fdb-53ad-4aba-92b5-7df368ae79a4",
+              "name": "exchange_rate",
+              "value": "={{ $json.exchange_rate }}",
+              "type": "string"
+            },
+            {
+              "id": "e88a8a1f-bbd7-4569-a31e-5675180d5d74",
+              "name": "fee",
+              "value": "={{ $json.fee }}",
+              "type": "number"
+            },
+            {
+              "id": "0b519a46-cd81-40e3-80fe-ea54b31e4ce3",
+              "name": "fee_details_amount",
+              "value": "={{ $json.fee_details[0]?.amount ?? null }}",
+              "type": "number"
+            },
+            {
+              "id": "1b12f5bd-9954-4e2f-9e22-b915ebc5eba7",
+              "name": "fee_details_application",
+              "value": "={{ $json.fee_details[0]?.application ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "33239b4e-dce4-4bc1-adb2-7a6674447826",
+              "name": "fee_details_currency",
+              "value": "={{ $json.fee_details[0]?.currency ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "54781d28-32be-49c7-b02a-c91d44e74d20",
+              "name": "fee_details_description",
+              "value": "={{ $json.fee_details[0]?.description ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "fbb5cd2e-35da-4f91-b696-9eefc63cfefc",
+              "name": "fee_details_type",
+              "value": "={{ $json.fee_details[0]?.type ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "708830d7-0451-49f6-8324-adccdf7b7e63",
+              "name": "net",
+              "value": "={{ $json.net }}",
+              "type": "number"
+            },
+            {
+              "id": "533ecf3f-bad5-482b-bcb6-d6ee67a569cd",
+              "name": "reporting_category",
+              "value": "={{ $json.reporting_category }}",
+              "type": "string"
+            },
+            {
+              "id": "214bc002-f246-41e5-bb3e-80e7156e9f8e",
+              "name": "source",
+              "value": "={{ $json.source }}",
+              "type": "string"
+            },
+            {
+              "id": "f408cbe9-b9eb-4395-9a4f-7d672b6fda61",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "6e8b557a-4d8e-42e8-bd2d-7b4edbe6ff27",
+              "name": "type",
+              "value": "={{ $json.type }}",
+              "type": "string"
+            },
+            {
+              "id": "d0ae8557-2d75-4062-951a-8a1c04d9590a",
+              "name": "ingested_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        0
+      ],
+      "id": "cf08c632-7929-4ac4-8c8d-610342d45429",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "stripe",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "stripe_balance_transactions",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        0
+      ],
+      "id": "16299124-1055-42e4-a98e-6eafcadfde16",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "googleApi": {
+          "id": "BIGQUERY_CREDENTIAL_ID",
+          "name": "BigQuery service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\n\nconst easternFormatter = new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/New_York',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit'\n});\n\nconst parts = easternFormatter.formatToParts(now);\nconst year  = parseInt(parts.find(p => p.type === 'year').value);\nconst month = parseInt(parts.find(p => p.type === 'month').value) - 1;\nconst day   = parseInt(parts.find(p => p.type === 'day').value);\n\nconst noonUTC = new Date(Date.UTC(year, month, day, 12, 0, 0));\nconst easternHour = parseInt(new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/New_York',\n  hour: 'numeric',\n  hour12: false\n}).format(noonUTC));\n\nconst offsetHours = 12 - easternHour;\nconst startUTC = Date.UTC(year, month, day - 1, offsetHours, 0, 0);\nconst endUTC   = startUTC + (24 * 60 * 60 * 1000) - 1000;\n\nfor (const item of $input.all()) {\n  item.json.yesterday_start_unix = Math.floor(startUTC / 1000);\n  item.json.yesterday_end_unix   = Math.floor(endUTC   / 1000);\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        208
+      ],
+      "id": "ee43c4d1-5e4b-43a4-8ab3-9c4a35535854",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.stripe.com/v1/charges?limit=1000&created[gte]={{ $json.yesterday_start_unix }}&created[lte]={{ $json.yesterday_end_unix }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "starting_after",
+                    "value": "={{ $response.body.data[$response.body.data.length - 1].id }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.has_more === false }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        208
+      ],
+      "id": "6cf71d16-629f-4fb2-b711-9778e6dc8277",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "STRIPE_CREDENTIAL_ID",
+          "name": "Stripe API (restricted read key)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        464,
+        208
+      ],
+      "id": "0656974c-f981-44e1-9cdd-b900541dd046",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "92d4c441-2349-4637-8a67-e52423d5f8db",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "a67710fd-5102-4cb9-b56c-31e1f063792a",
+              "name": "object",
+              "value": "={{ $json.object }}",
+              "type": "string"
+            },
+            {
+              "id": "d717a6cf-8e92-4909-95c6-b23814dec4af",
+              "name": "amount",
+              "value": "={{ $json.amount }}",
+              "type": "number"
+            },
+            {
+              "id": "bca1fcf0-cf9c-407e-99a7-6d07d6982167",
+              "name": "amount_captured",
+              "value": "={{ $json.amount_captured }}",
+              "type": "number"
+            },
+            {
+              "id": "6081a3b8-13c9-45dc-95c6-39a79a8003a4",
+              "name": "amount_refunded",
+              "value": "={{ $json.amount_refunded }}",
+              "type": "number"
+            },
+            {
+              "id": "b2d1121a-f586-4c7a-b8dd-73167a56a740",
+              "name": "balance_transaction",
+              "value": "={{ $json.balance_transaction }}",
+              "type": "string"
+            },
+            {
+              "id": "d6d466df-bc4b-4d4f-b231-45b377c9922e",
+              "name": "calculated_statement_descriptor",
+              "value": "={{ $json.calculated_statement_descriptor }}",
+              "type": "string"
+            },
+            {
+              "id": "fea06bf3-ed45-4070-8810-e56610d87640",
+              "name": "captured",
+              "value": "={{ $json.captured }}",
+              "type": "boolean"
+            },
+            {
+              "id": "1099b2ae-ed06-48c1-bdef-aad16e979580",
+              "name": "created_date",
+              "value": "={{ DateTime.fromSeconds($json.created).toISODate() }}",
+              "type": "string"
+            },
+            {
+              "id": "081d8ce5-cc2f-4367-9378-c56b3393d109",
+              "name": "created",
+              "value": "={{ $json.created }}",
+              "type": "number"
+            },
+            {
+              "id": "fe51c7ec-8065-4d80-8860-1f3f3f520599",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "a319ff53-ca07-466e-9f77-c24e9aeeb162",
+              "name": "customer",
+              "value": "={{ $json.customer }}",
+              "type": "string"
+            },
+            {
+              "id": "714f2500-6b60-4734-8468-e100ecbc5b67",
+              "name": "description",
+              "value": "={{ $json.description }}",
+              "type": "string"
+            },
+            {
+              "id": "94ae4d79-6793-4595-9da0-e73b08c51eef",
+              "name": "disputed",
+              "value": "={{ $json.disputed }}",
+              "type": "boolean"
+            },
+            {
+              "id": "343d1426-17eb-4f78-986e-51f0e9dd69ef",
+              "name": "failure_balance_transaction",
+              "value": "={{ $json.failure_balance_transaction }}",
+              "type": "string"
+            },
+            {
+              "id": "06a48872-cf18-43f8-b3a5-ba893c26a11a",
+              "name": "failure_code",
+              "value": "={{ $json.failure_code }}",
+              "type": "string"
+            },
+            {
+              "id": "09b2ae91-67c4-4422-963e-68dbec78a3f0",
+              "name": "failure_message",
+              "value": "={{ $json.failure_message }}",
+              "type": "string"
+            },
+            {
+              "id": "b2eb9378-02bd-44f7-817a-dbd9bc8d9f55",
+              "name": "livemode",
+              "value": "={{ $json.livemode }}",
+              "type": "boolean"
+            },
+            {
+              "id": "bece2399-89e7-4341-9a89-1a228c87f32b",
+              "name": "paid",
+              "value": "={{ $json.paid }}",
+              "type": "boolean"
+            },
+            {
+              "id": "884e68a3-a63a-4c0a-805d-2056d0b37bd1",
+              "name": "payment_intent",
+              "value": "={{ $json.payment_intent }}",
+              "type": "string"
+            },
+            {
+              "id": "38d6d011-999a-4e27-9823-583de7b7320c",
+              "name": "payment_method",
+              "value": "={{ $json.payment_method }}",
+              "type": "string"
+            },
+            {
+              "id": "452d30a5-59b9-44c9-a123-410eb7c29704",
+              "name": "billing_details_address_city",
+              "value": "={{ $json.billing_details.address.city }}",
+              "type": "string"
+            },
+            {
+              "id": "929c0290-17d4-4a6b-a224-cb009ce9fa9f",
+              "name": "billing_details_address_country",
+              "value": "={{ $json.billing_details.address.country }}",
+              "type": "string"
+            },
+            {
+              "id": "deee0eb0-36e5-4031-987a-5d975b20b110",
+              "name": "billing_details_address_postal_code",
+              "value": "={{ $json.billing_details.address.postal_code }}",
+              "type": "string"
+            },
+            {
+              "id": "0fcd3d94-1605-43c2-9bd4-0ff7ae1fef74",
+              "name": "billing_details_address_state",
+              "value": "={{ $json.billing_details.address.state }}",
+              "type": "string"
+            },
+            {
+              "id": "23b93fec-8d4d-4154-a0db-483ad5c98765",
+              "name": "billing_details_email",
+              "value": "={{ $json.billing_details.email }}",
+              "type": "string"
+            },
+            {
+              "id": "6ab46c39-dc61-4d86-a0a8-abdffcfef3b1",
+              "name": "billing_details_name",
+              "value": "={{ $json.billing_details.name }}",
+              "type": "string"
+            },
+            {
+              "id": "90e0cfcc-76da-4ab4-9435-75f02f87ccd6",
+              "name": "billing_details_phone",
+              "value": "={{ $json.billing_details.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "20aadd3b-ec30-42c7-8277-1859e19828ce",
+              "name": "billing_details_address_line1",
+              "value": "={{ $json.billing_details.address.line1 }}",
+              "type": "string"
+            },
+            {
+              "id": "c15d2cf6-91b7-45b6-a0d9-ac053788deaa",
+              "name": "shipping_name",
+              "value": "={{ $json.shipping.name }}",
+              "type": "string"
+            },
+            {
+              "id": "baf97914-758c-44e8-8131-e181c6d63794",
+              "name": "shipping_phone",
+              "value": "={{ $json.shipping.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "06376500-21ab-4a10-b21e-a6b899a6fe44",
+              "name": "shipping_carrier",
+              "value": "={{ $json.shipping.carrier }}",
+              "type": "string"
+            },
+            {
+              "id": "460424e1-6e6f-4c20-bd51-9c9041590e9b",
+              "name": "shipping_tracking_number",
+              "value": "={{ $json.shipping.tracking_number }}",
+              "type": "string"
+            },
+            {
+              "id": "c8e12b18-d9b1-491f-af91-60dc86803ae6",
+              "name": "shipping_address_line1",
+              "value": "={{ $json.shipping.address.line1 }}",
+              "type": "string"
+            },
+            {
+              "id": "fa52b1b1-f756-4cc7-a4d8-812896d19dcf",
+              "name": "shipping_address_city",
+              "value": "={{ $json.shipping.address.city }}",
+              "type": "string"
+            },
+            {
+              "id": "e40aade6-de07-4091-81a5-2107ae26cc36",
+              "name": "shipping_address_state",
+              "value": "={{ $json.shipping.address.state }}",
+              "type": "string"
+            },
+            {
+              "id": "ceaf4432-bf3b-43e7-8e45-57a9a0de0133",
+              "name": "shipping_address_country",
+              "value": "={{ $json.shipping.address.country }}",
+              "type": "string"
+            },
+            {
+              "id": "f54b9085-8bc5-4a14-a437-e34d884fbe97",
+              "name": "shipping_address_postal_code",
+              "value": "={{ $json.shipping.address.postal_code }}",
+              "type": "string"
+            },
+            {
+              "id": "1f3fab11-d78c-4af4-b181-c90954c96f65",
+              "name": "outcome_network_status",
+              "value": "={{ $json.outcome.network_status }}",
+              "type": "string"
+            },
+            {
+              "id": "c221609d-ba70-447f-96dc-94115da75145",
+              "name": "outcome_risk_level",
+              "value": "={{ $json.outcome.risk_level }}",
+              "type": "string"
+            },
+            {
+              "id": "c42eb1f8-138a-4f21-b375-58d3bc224bf6",
+              "name": "outcome_seller_message",
+              "value": "={{ $json.outcome.seller_message }}",
+              "type": "string"
+            },
+            {
+              "id": "77d85a08-a798-47c4-b5e4-fe525d68be19",
+              "name": "outcome_type",
+              "value": "={{ $json.outcome.type }}",
+              "type": "string"
+            },
+            {
+              "id": "785c0962-1164-45ed-81d3-99a9d5001f33",
+              "name": "payment_method_details_card_brand",
+              "value": "={{ $json.payment_method_details.card.brand }}",
+              "type": "string"
+            },
+            {
+              "id": "f260efab-addf-412d-a3d2-a85ee864881e",
+              "name": "payment_method_details_card_last4",
+              "value": "={{ $json.payment_method_details.card.last4 }}",
+              "type": "string"
+            },
+            {
+              "id": "ac254cef-2d89-4cbd-84db-b3ff744e30ea",
+              "name": "payment_method_details_card_funding",
+              "value": "={{ $json.payment_method_details.card.funding }}",
+              "type": "string"
+            },
+            {
+              "id": "4c0d524b-9e1a-47f4-a501-f285d996ade5",
+              "name": "payment_method_details_card_country",
+              "value": "={{ $json.payment_method_details.card.country }}",
+              "type": "string"
+            },
+            {
+              "id": "61b1161a-09e5-4344-9345-2ce35c4fec4d",
+              "name": "payment_method_details_card_exp_month",
+              "value": "={{ $json.payment_method_details.card.exp_month }}",
+              "type": "number"
+            },
+            {
+              "id": "381a8d3c-583a-4b3b-8e0c-b4da5521e6dc",
+              "name": "payment_method_details_card_exp_year",
+              "value": "={{ $json.payment_method_details.card.exp_year }}",
+              "type": "number"
+            },
+            {
+              "id": "d32cbed7-503d-4111-8faa-734a1ac3b72e",
+              "name": "payment_method_details_card_network",
+              "value": "={{ $json.payment_method_details.card.network }}",
+              "type": "string"
+            },
+            {
+              "id": "f6b822b0-9686-42f5-a645-8b31f1f4368a",
+              "name": "payment_method_details_card_amount_authorized",
+              "value": "={{ $json.payment_method_details.card.amount_authorized }}",
+              "type": "number"
+            },
+            {
+              "id": "af7d6141-c04e-4b22-ad7b-3a516d46bb04",
+              "name": "payment_method_details_card_fingerprint",
+              "value": "={{ $json.payment_method_details.card.fingerprint }}",
+              "type": "string"
+            },
+            {
+              "id": "a61a393a-b3fc-43bd-b07b-8125ad82f24f",
+              "name": "payment_method_details_card_network_transaction_id",
+              "value": "={{ $json.payment_method_details.card.network_transaction_id }}",
+              "type": "string"
+            },
+            {
+              "id": "3247385b-e6cc-434d-ba0a-620f7780f687",
+              "name": "payment_method_details_card_wallet",
+              "value": "={{ $json.payment_method_details?.card?.wallet?.type ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "fb88d6ca-499f-432e-908e-561ce7f88b96",
+              "name": "payment_method_details_type",
+              "value": "={{ $json.payment_method_details.type }}",
+              "type": "string"
+            },
+            {
+              "id": "5ded3c3f-7ef6-4cb3-8a8f-10e58c5f66fa",
+              "name": "metadata_customer_email",
+              "value": "={{ $json.metadata.customer_email }}",
+              "type": "string"
+            },
+            {
+              "id": "e680c359-054b-4963-ade1-6899c2b017c1",
+              "name": "metadata_customer_name",
+              "value": "={{ $json.metadata.customer_name }}",
+              "type": "string"
+            },
+            {
+              "id": "96305ec7-bc8d-4898-a3f7-a1f09b548db4",
+              "name": "metadata_coupon_code",
+              "value": "={{ $json.metadata.coupon_code }}",
+              "type": "string"
+            },
+            {
+              "id": "5058fe51-4a4f-439b-84d8-9a2e25eabaf1",
+              "name": "metadata_product_id",
+              "value": "={{ $json.metadata.product_id }}",
+              "type": "string"
+            },
+            {
+              "id": "f333f2c2-be06-4b2c-b91f-ed323f1e01c8",
+              "name": "metadata_product_sku",
+              "value": "={{ $json.metadata.product_sku }}",
+              "type": "string"
+            },
+            {
+              "id": "8bf1b0b3-ba58-4f6d-9d52-82f6eea531ab",
+              "name": "metadata_discount_amount",
+              "value": "={{ $json.metadata.discount_amount }}",
+              "type": "string"
+            },
+            {
+              "id": "755c61d8-638f-48d2-9377-829751ac23ef",
+              "name": "metadata_opt_in_sms",
+              "value": "={{ $json.metadata.opt_in_sms }}",
+              "type": "string"
+            },
+            {
+              "id": "95ccbed9-fdfa-4077-8843-0e357bec5629",
+              "name": "receipt_email",
+              "value": "={{ $json.receipt_email }}",
+              "type": "string"
+            },
+            {
+              "id": "33fbaddf-d274-4a07-a6be-837f21b610dc",
+              "name": "receipt_number",
+              "value": "={{ $json.receipt_number }}",
+              "type": "string"
+            },
+            {
+              "id": "d9f5db30-1a19-4a86-b960-d806377b8899",
+              "name": "receipt_url",
+              "value": "={{ $json.receipt_url }}",
+              "type": "string"
+            },
+            {
+              "id": "8587766e-e286-4fca-97e9-ada2d25e1aeb",
+              "name": "refunded",
+              "value": "={{ $json.refunded }}",
+              "type": "boolean"
+            },
+            {
+              "id": "027f88c9-2cc5-431c-b1a6-b9dcb57ee561",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "befc6c66-bacf-4ea1-a734-fab24908a3b1",
+              "name": "ingested_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        208
+      ],
+      "id": "27e06dce-d2a7-42a5-9d25-7fe4d9118cbe",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "stripe",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "stripe_charges",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        208
+      ],
+      "id": "c8bc766f-0189-49e6-a55a-2ba892c0121b",
+      "name": "Insert rows in a table1",
+      "credentials": {
+        "googleApi": {
+          "id": "BIGQUERY_CREDENTIAL_ID",
+          "name": "BigQuery service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\n\nconst easternFormatter = new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/New_York',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit'\n});\n\nconst parts = easternFormatter.formatToParts(now);\nconst year  = parseInt(parts.find(p => p.type === 'year').value);\nconst month = parseInt(parts.find(p => p.type === 'month').value) - 1;\nconst day   = parseInt(parts.find(p => p.type === 'day').value);\n\nconst noonUTC = new Date(Date.UTC(year, month, day, 12, 0, 0));\nconst easternHour = parseInt(new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/New_York',\n  hour: 'numeric',\n  hour12: false\n}).format(noonUTC));\n\nconst offsetHours = 12 - easternHour;\nconst startUTC = Date.UTC(year, month, day - 1, offsetHours, 0, 0);\nconst endUTC   = startUTC + (24 * 60 * 60 * 1000) - 1000;\n\nfor (const item of $input.all()) {\n  item.json.yesterday_start_unix = Math.floor(startUTC / 1000);\n  item.json.yesterday_end_unix   = Math.floor(endUTC   / 1000);\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        416
+      ],
+      "id": "3c2d43c0-edea-437a-b39e-6b11badc3ca3",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.stripe.com/v1/disputes?limit=1000&created[gte]={{ $json.yesterday_start_unix }}&created[lte]={{ $json.yesterday_end_unix }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "starting_after",
+                    "value": "={{ $response.body.data[$response.body.data.length - 1].id }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.has_more === false }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        416
+      ],
+      "id": "53d6d961-a287-4078-a0e6-e9d287cb557e",
+      "name": "HTTP Request2",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "STRIPE_CREDENTIAL_ID",
+          "name": "Stripe API (restricted read key)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        464,
+        416
+      ],
+      "id": "d9d78a2c-17c2-4307-811f-22726e14a57f",
+      "name": "Split Out2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "13431daa-f274-4c87-9514-66889f1bc881",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "e3ca271b-4557-4e84-9764-539387e5e73b",
+              "name": "charge_id",
+              "value": "={{ $json.charge }}",
+              "type": "string"
+            },
+            {
+              "id": "0042b3aa-dfbe-4855-b099-6d760f5043ed",
+              "name": "amount",
+              "value": "={{ $json.amount }}",
+              "type": "number"
+            },
+            {
+              "id": "fba7dc06-04fa-4794-88e9-541cf6091a1f",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "73e4075c-c208-4581-9e80-79d6a50031f4",
+              "name": "reason",
+              "value": "={{ $json.reason }}",
+              "type": "string"
+            },
+            {
+              "id": "7c786dd3-0264-4184-b868-1742212e8a2a",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "c2abc672-5f52-43cd-9689-bc94f3d6d71f",
+              "name": "is_charge_refundable",
+              "value": "={{ $json.is_charge_refundable }}",
+              "type": "boolean"
+            },
+            {
+              "id": "d3a7521e-83ab-4623-95f7-2c0051fbbd20",
+              "name": "balance_transactions_net",
+              "value": "={{ $json.balance_transactions[0].net }}",
+              "type": "number"
+            },
+            {
+              "id": "c2243dde-895f-4416-a977-8eecae51150c",
+              "name": "balance_transactions_fee",
+              "value": "={{ $json.balance_transactions[0].fee }}",
+              "type": "number"
+            },
+            {
+              "id": "b03dbc55-e4df-4c23-bc49-6bc27bb79567",
+              "name": "balance_transactions_description",
+              "value": "={{ $json.balance_transactions[0].description }}",
+              "type": "string"
+            },
+            {
+              "id": "cce4bb7e-3c9b-454d-a1a7-968de9cd4e28",
+              "name": "balance_transactions_fee_details_amount",
+              "value": "={{ $json.balance_transactions[0]?.fee_details[0]?.amount ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "8a7a1137-307f-4285-a376-23a04744d504",
+              "name": "balance_transactions_fee_details_description",
+              "value": "={{ $json.balance_transactions[0]?.fee_details[0]?.description ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "b3344685-ac14-4f17-86f6-b5b0f64e941a",
+              "name": "payment_method_details_card_brand",
+              "value": "={{ $json.payment_method_details?.card?.brand ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "fe548c73-802f-42be-b47b-67933e2a3db6",
+              "name": "payment_method_details_card_case_type",
+              "value": "={{ $json.payment_method_details?.card?.case_type ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "8c7ded7d-082d-4990-9816-2e8559db3b42",
+              "name": "payment_method_details_card_network_reason_code",
+              "value": "={{ $json.payment_method_details?.card?.network_reason_code ?? null }}",
+              "type": "string"
+            },
+            {
+              "id": "af1c1e74-dd26-4517-bc60-08811389821d",
+              "name": "created",
+              "value": "={{ $json.created }}",
+              "type": "number"
+            },
+            {
+              "id": "fab6f3d9-f4f1-423d-9dbb-eaa8f36810b5",
+              "name": "created_date",
+              "value": "={{ DateTime.fromSeconds($json.created).toISODate() }}",
+              "type": "string"
+            },
+            {
+              "id": "18258770-2b9d-4820-accb-85204045fcfa",
+              "name": "ingested_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        416
+      ],
+      "id": "b3d90174-14c6-4526-9608-709adac6a21d",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "stripe",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "stripe_disputes",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        416
+      ],
+      "id": "181b04b4-cfc2-4ed4-9c49-0a14b5ee9cc0",
+      "name": "Insert rows in a table2",
+      "credentials": {
+        "googleApi": {
+          "id": "BIGQUERY_CREDENTIAL_ID",
+          "name": "BigQuery service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\n\nconst easternFormatter = new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/New_York',\n  year: 'numeric',\n  month: '2-digit',\n  day: '2-digit'\n});\n\nconst parts = easternFormatter.formatToParts(now);\nconst year  = parseInt(parts.find(p => p.type === 'year').value);\nconst month = parseInt(parts.find(p => p.type === 'month').value) - 1;\nconst day   = parseInt(parts.find(p => p.type === 'day').value);\n\nconst noonUTC = new Date(Date.UTC(year, month, day, 12, 0, 0));\nconst easternHour = parseInt(new Intl.DateTimeFormat('en-US', {\n  timeZone: 'America/New_York',\n  hour: 'numeric',\n  hour12: false\n}).format(noonUTC));\n\nconst offsetHours = 12 - easternHour;\nconst startUTC = Date.UTC(year, month, day - 1, offsetHours, 0, 0);\nconst endUTC   = startUTC + (24 * 60 * 60 * 1000) - 1000;\n\nfor (const item of $input.all()) {\n  item.json.yesterday_start_unix = Math.floor(startUTC / 1000);\n  item.json.yesterday_end_unix   = Math.floor(endUTC   / 1000);\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        608
+      ],
+      "id": "6347e72c-56dd-450c-b47c-ec98a999da1d",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.stripe.com/v1/refunds?limit=100&created[gte]={{ $json.yesterday_start_unix }}&created[lte]={{ $json.yesterday_end_unix }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "starting_after",
+                    "value": "={{ $response.body.data[$response.body.data.length - 1].id }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ $response.body.has_more === false }}"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        608
+      ],
+      "id": "fb5e6596-c511-4520-859d-ba3b3c94139f",
+      "name": "HTTP Request3",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "STRIPE_CREDENTIAL_ID",
+          "name": "Stripe API (restricted read key)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        464,
+        608
+      ],
+      "id": "4c749406-8bfd-4180-be62-5e597cc05f77",
+      "name": "Split Out3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6cbe3273-d6dd-4ad9-9709-49fc4c8eb11c",
+              "name": "id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "1e39dfa2-44ce-4895-8bc9-0d06e146de18",
+              "name": "charge_id",
+              "value": "={{ $json.charge }}",
+              "type": "string"
+            },
+            {
+              "id": "00bed454-8fe9-477a-875a-0770873f6efc",
+              "name": "amount",
+              "value": "={{ $json.amount }}",
+              "type": "number"
+            },
+            {
+              "id": "f5ab9ccd-5fb7-40a6-96e8-c3e182777aad",
+              "name": "currency",
+              "value": "={{ $json.currency }}",
+              "type": "string"
+            },
+            {
+              "id": "f54d2b2e-5a62-4b9f-a400-80b115056b95",
+              "name": "reason",
+              "value": "={{ $json.reason }}",
+              "type": "string"
+            },
+            {
+              "id": "f2d28e31-89ca-4a52-80fe-522bd0e635de",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "83ecab2b-c4c7-4c6a-9912-82b4be680299",
+              "name": "balance_transaction",
+              "value": "={{ $json.balance_transaction }}",
+              "type": "string"
+            },
+            {
+              "id": "849369bf-6c1a-4536-8461-4e766db483f4",
+              "name": "created",
+              "value": "={{ $json.created }}",
+              "type": "number"
+            },
+            {
+              "id": "7f099409-3dd9-4d6b-8068-5dfb8cacae4c",
+              "name": "created_date",
+              "value": "={{ DateTime.fromSeconds($json.created).toISODate() }}",
+              "type": "string"
+            },
+            {
+              "id": "5121f964-9223-4f0d-ad41-edc9e63c89d9",
+              "name": "ingested_at",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        608
+      ],
+      "id": "1c948175-0881-4c4a-97e8-b609fed99ee4",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "stripe",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "stripe_refunds",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        896,
+        608
+      ],
+      "id": "0f702b70-88dc-4bc1-916c-c7303dac0d3d",
+      "name": "Insert rows in a table3",
+      "credentials": {
+        "googleApi": {
+          "id": "BIGQUERY_CREDENTIAL_ID",
+          "name": "BigQuery service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Split Out2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Split Out3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

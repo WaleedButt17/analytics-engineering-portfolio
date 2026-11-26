@@ -13,6 +13,8 @@ A direct to consumer health and wellness brand sells subscriptions across 6 onli
 I built daily n8n pipelines into BigQuery, a raw, staging and mart model with 14 marts, and a 10 page Looker Studio report.
 
 > Store names, domains, account IDs and credentials are removed. Stores appear as `store_1` to `store_6`. The workflows are the real ones, rebuilt with placeholders.
+>
+> Because of the client's security restrictions I cannot share the SQL or the rest of the dashboard pages. The workflows, the model description and the screenshots below show what was built.
 
 ## How it works
 
@@ -68,6 +70,15 @@ More screenshots: [Loop snapshot](n8n/n8n_loop_subscription_snapshot.png), [exch
 | `mart_cc_payment_health` | First attempt payment success, dunning recovery |
 | `mart_product_daily`, `mart_utm_daily` | Product and UTM attribution |
 | `mart_amazon_ads`, `mart_amazon_traffic` | Amazon ads and marketplace traffic |
+
+## Dashboard
+
+The report has 10 pages (subscriptions, subscriber analytics, funnel, cohort retention, LTV, unit economics, products, UTM attribution, Amazon, payment health). A few of them, brand name removed:
+
+| | |
+|---|---|
+| ![Subscriptions overview](screenshots/01_subscriptions_overview.png) | ![MRR and payment health](screenshots/02_mrr_and_payment_health.png) |
+| ![Subscriber analytics, month](screenshots/03_subscriber_analytics_month.png) | ![Subscriber analytics, week](screenshots/04_subscriber_analytics_week.png) |
 
 ## Problems found and fixed
 

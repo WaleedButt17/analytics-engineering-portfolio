@@ -1,0 +1,1080 @@
+{
+  "name": "CheckoutChamp daily (summaries, paged purchases, orders, transactions, projected billing)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 2
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -688,
+        560
+      ],
+      "id": "370570de-a8f2-4208-93dd-1cf831c4f65f",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst yesterday = new Date(now);\nyesterday.setDate(now.getDate() - 1);\n\nconst fmt = (d) => {\n  const mm = String(d.getMonth() + 1).padStart(2, '0');\n  const dd = String(d.getDate()).padStart(2, '0');\n  const yyyy = d.getFullYear();\n  return `${mm}/${dd}/${yyyy}`;\n};\n\nconst isoDate = yesterday.toISOString().split('T')[0];\n\nreturn [{\n  json: {\n    startDate: fmt(yesterday),\n    endDate: fmt(yesterday),\n    isoDate: isoDate\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        272
+      ],
+      "id": "7e48555c-5a8d-448b-8c06-5fc16bc6548d",
+      "name": "yesterday calculation"
+    },
+    {
+      "parameters": {
+        "jsCode": "const yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\n\nconst future = new Date();\nfuture.setDate(yesterday.getDate() + 30);\n\nconst pad = n => String(n).padStart(2, '0');\nconst fmt = d => `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()}`;\n\nreturn [{ json: {\n  startDate: fmt(yesterday),\n  endDate: fmt(future)\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -464,
+        848
+      ],
+      "id": "d0eb5440-f0fc-43de-9a2f-27ba650abb41",
+      "name": "monthly calculations"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/order/summary/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.endDate }}"
+            },
+            {
+              "name": "reportType",
+              "value": "date"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        -112
+      ],
+      "id": "871b1122-375a-4d97-bc36-4d4e9959b918",
+      "name": "order summary"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.all()[0].json.data;\nconst parsed = JSON.parse(raw);\nconst rows = parsed.message;\n\nif (!Array.isArray(rows)) return [];\n\nconst isoDate = $('yesterday calculation').first().json.isoDate;\n\nreturn rows.map(row => ({\n  json: {\n    ingested_at: new Date().toISOString(),\n    source: 'checkoutchamp',\n    date: isoDate,\n    orders_count: parseInt(row.sales) || 0,\n    gross_revenue: parseFloat(row.salesTotal) || 0,\n    net_revenue: parseFloat(row.netRevenue) || 0,\n    refund_amount: parseFloat(row.refundAmount) || 0,\n    shipping: parseFloat(row.shipping) || 0,\n    sales_tax: parseFloat(row.salesTax) || 0,\n    avg_ticket: parseFloat(row.avgTicket) || 0,\n    declines_count: parseInt(row.declines) || 0,\n    upsells_count: parseInt(row.upsellCnt) || 0,\n    upsell_revenue: parseFloat(row.upsellTotal) || 0,\n    partial_count: parseInt(row.partials) || 0,\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        -112
+      ],
+      "id": "c44b69e1-1f22-43dc-8cf6-86be2cb14b58",
+      "name": "clean order summary"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_cc_orders_summary",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        -112
+      ],
+      "id": "f230b86c-28aa-40d3-8626-6eb8b1e97dca",
+      "name": "Insert order summary",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/transactions/summary/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.endDate }}"
+            },
+            {
+              "name": "reportType",
+              "value": "date"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        80
+      ],
+      "id": "4ad00235-4260-4e92-91ab-6f738d03b049",
+      "name": "transactions summary"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.all()[0].json.data;\nconst parsed = JSON.parse(raw);\nconst rows = parsed.message;\n\nif (!Array.isArray(rows)) return [];\n\nreturn rows.map(row => ({\n  json: {\n    ingested_at: new Date().toISOString(),\n    source: 'checkoutchamp',\n    date: row.date,\n    new_sale_count: parseInt(row.newSaleCnt) || 0,\n    new_sale_revenue: parseFloat(row.newSaleRev) || 0,\n    new_sale_declines: parseInt(row.declinesCnt) || 0,\n    new_sale_approval_pct: parseFloat(row.approvedPerc) || 0,\n    rebill_count: parseInt(row.rebillCnt) || 0,\n    rebill_revenue: parseFloat(row.rebillRev) || 0,\n    rebill_declines: parseInt(row.rebillDeclinesCnt) || 0,\n    rebill_approval_pct: parseFloat(row.rebillApprovedPerc) || 0,\n    gross_revenue: parseFloat(row.grossRevenue) || 0,\n    net_revenue: parseFloat(row.netRevenue) || 0,\n    sales_tax: parseFloat(row.salesTax) || 0,\n    refund_count: parseInt(row.refundCnt) || 0,\n    refund_revenue: Math.abs(parseFloat(row.refundRev)) || 0,\n    refund_pct: parseFloat(row.refundPerc) || 0,\n    chargeback_count: parseInt(row.chargebackCnt) || 0,\n    chargeback_revenue: parseFloat(row.chargebackRev) || 0,\n    chargeback_pct: parseFloat(row.chargebackPerc) || 0,\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        80
+      ],
+      "id": "7d97ea5d-e3fb-4f80-967f-0a59cd338152",
+      "name": "clean transactions summary"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_cc_transactions_summary",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        80
+      ],
+      "id": "32a01f26-9544-487e-a2e2-de51a83b79a0",
+      "name": "Insert transactions summary",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/purchase/query/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.endDate }}"
+            },
+            {
+              "name": "dateRangeType",
+              "value": "dateUpdated"
+            },
+            {
+              "name": "resultsPerPage",
+              "value": "200"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        272
+      ],
+      "id": "dd0827f1-c4b0-4038-bd15-3cd0e5e79b0b",
+      "name": "purchases page 1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.data;\nconst parsed = JSON.parse(raw);\nconst total = parsed.message.totalResults;\nconst pages = Math.ceil(total / 200);\n\nconst result = [];\nfor (let i = 1; i <= pages; i++) {\n  result.push({ json: { page: i } });\n}\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        272
+      ],
+      "id": "6d4ebb0d-a757-40ce-b0bf-670703afb04e",
+      "name": "Generate purchase pages"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/purchase/query/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $('yesterday calculation').item.json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $('yesterday calculation').item.json.endDate }}"
+            },
+            {
+              "name": "dateRangeType",
+              "value": "dateUpdated"
+            },
+            {
+              "name": "resultsPerPage",
+              "value": "200"
+            },
+            {
+              "name": "page",
+              "value": "={{ $json.page }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        272
+      ],
+      "id": "741566cf-fa44-4077-863c-ee499c2c8190",
+      "name": "purchases fetch all pages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allRecords = [];\n\nfor (const item of $input.all()) {\n  let raw = item.json.data;\n  if (typeof raw === 'string') {\n    raw = JSON.parse(raw);\n  }\n  const msg = raw.message;\n  if (msg && msg.data && Array.isArray(msg.data)) {\n    allRecords.push(...msg.data);\n  }\n}\n\nreturn allRecords.map(r => ({\n  json: {\n    purchase_id: r.purchaseId,\n    actual_purchase_id: r.actualPurchaseId,\n    customer_id: r.customerId,\n    order_id: r.orderId,\n    campaign_id: r.campaignId,\n    product_id: r.actualProductId,\n    product_name: r.productName,\n    display_name: r.displayName,\n    status: r.status,\n    cancel_reason: r.cancelReason || null,\n    price: parseFloat(r.price) || 0,\n    shipping_price: parseFloat(r.shippingPrice) || 0,\n    billing_cycle_type: r.billingCycleType,\n    billing_interval_days: parseInt(r.billingIntervalDays) || null,\n    billing_cycle_number: parseInt(r.billingCycleNumber) || null,\n    next_bill_date: r.nextBillDate || null,\n    last_cancellation_date: r.lastCancellationDate || null,\n    last_activation_date: r.lastActivationDate || null,\n    total_billed: parseFloat(r.totalBilled) || 0,\n    total_refunded: parseFloat(r.totalRefunded) || 0,\n    product_qty: parseInt(r.productQty) || null,\n    merchant_id: r.merchantId,\n    merchant: r.merchant,\n    currency_code: r.currencyCode,\n    country: r.country,\n    date_created: r.dateCreated,\n    date_updated: r.dateUpdated,\n    cancellation_scheduled: r.cancellationScheduled === 1,\n    pause_scheduled: r.pauseScheduled === 1\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        272
+      ],
+      "id": "9e5193f8-27b2-4fe8-a8e1-8c6404d0fcb6",
+      "name": "clean purchases"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_cc_purchases",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        656,
+        272
+      ],
+      "id": "9ae9b10d-b25c-4064-852e-ae43ce78e850",
+      "name": "Insert purchases",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/order/query/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.endDate }}"
+            },
+            {
+              "name": "dateRangeType",
+              "value": "dateUpdated"
+            },
+            {
+              "name": "resultsPerPage",
+              "value": "200"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        464
+      ],
+      "id": "9737c479-90ac-49ca-a61e-e918c3e13816",
+      "name": "orders page 1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.data;\nconst parsed = JSON.parse(raw);\nconst total = parsed.message.totalResults;\nconst pages = Math.ceil(total / 200);\n\nconst result = [];\nfor (let i = 1; i <= pages; i++) {\n  result.push({ json: { page: i } });\n}\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        464
+      ],
+      "id": "9cf429fe-29e1-4e53-9d7e-ff467b1343b5",
+      "name": "Generate order pages"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/order/query/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $('yesterday calculation').item.json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $('yesterday calculation').item.json.endDate }}"
+            },
+            {
+              "name": "dateRangeType",
+              "value": "dateUpdated"
+            },
+            {
+              "name": "resultsPerPage",
+              "value": "200"
+            },
+            {
+              "name": "page",
+              "value": "={{ $json.page }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        464
+      ],
+      "id": "f62d7830-ccf1-4820-b733-86f30b485d97",
+      "name": "orders fetch all pages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allRecords = [];\n\nfor (const item of $input.all()) {\n  let raw = item.json.data;\n  if (typeof raw === 'string') {\n    raw = JSON.parse(raw);\n  }\n  const msg = raw.message;\n  if (msg && msg.data && Array.isArray(msg.data)) {\n    allRecords.push(...msg.data);\n  }\n}\n\nreturn allRecords.map(r => {\n  const items = r.items ? Object.values(r.items) : [];\n  const itemNames = items.map(i => i.name).filter(Boolean).join(' | ');\n  const itemSkus = items.map(i => i.productSku).filter(Boolean).join(' | ');\n  const itemCount = items.length;\n\n  return {\n    json: {\n      order_id: r.orderId,\n      actual_order_id: r.actualOrderId,\n      customer_id: r.customerId,\n      campaign_id: r.campaignId,\n      campaign_name: r.campaignName || null,\n      campaign_category: r.campaignCategoryName || null,\n      order_type: r.orderType,\n      order_status: r.orderStatus,\n      total_amount: parseFloat(r.totalAmount) || 0,\n      price: parseFloat(r.price) || 0,\n      base_shipping: parseFloat(r.baseShipping) || 0,\n      discount_price: parseFloat(r.discountPrice) || 0,\n      sales_tax: parseFloat(r.salesTax) || 0,\n      surcharge: parseFloat(r.surcharge) || 0,\n      product_cost: parseFloat(r.productCost) || 0,\n      shipping_cost: parseFloat(r.shippingCost) || 0,\n      total_discount: parseFloat(r.totalDiscount) || 0,\n      refund_remaining: parseFloat(r.refundRemaining) || 0,\n      country: r.country || null,\n      currency_code: r.currencyCode || null,\n      pay_source: r.paySource || null,\n      card_type: r.cardType || null,\n      card_last4: r.cardLast4 || null,\n      card_is_prepaid: r.cardIsPrepaid === 1,\n      card_is_debit: r.cardIsDebit === 1,\n      is_decline_save: r.isDeclineSave === 1,\n      has_upsell: r.hasUpsell === true,\n      item_count: itemCount,\n      item_names: itemNames || null,\n      item_skus: itemSkus || null,\n      coupon_code: r.couponCode || null,\n      utm_source: r.UTMSource || null,\n      utm_medium: r.UTMMedium || null,\n      utm_campaign: r.UTMCampaign || null,\n      utm_term: r.UTMTerm || null,\n      utm_content: r.UTMContent || null,\n      custom1: r.custom1 || null,\n      custom2: r.custom2 || null,\n      custom3: r.custom3 || null,\n      funnel_reference_id: r.funnelReferenceId || null,\n      source_id: r.sourceId || null,\n      source_title: r.sourceTitle || null,\n      aff_id: r.affId || null,\n      date_created: r.dateCreated,\n      date_updated: r.dateUpdated || null\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        464
+      ],
+      "id": "5586508b-3bb2-4435-a2f0-b32fe7a93435",
+      "name": "clean orders"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_cc_orders",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        656,
+        464
+      ],
+      "id": "bf45eeaf-52ab-46c0-a19c-17b73b630975",
+      "name": "Insert orders",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/transactions/query/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.endDate }}"
+            },
+            {
+              "name": "dateRangeType",
+              "value": "dateUpdated"
+            },
+            {
+              "name": "resultsPerPage",
+              "value": "200"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        656
+      ],
+      "id": "91bb5656-887b-4886-bc47-a800792f78fe",
+      "name": "transactions page 1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.data;\nconst parsed = JSON.parse(raw);\nconst total = parsed.message.totalResults;\nconst pages = Math.ceil(total / 200);\n\nconst result = [];\nfor (let i = 1; i <= pages; i++) {\n  result.push({ json: { page: i } });\n}\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        656
+      ],
+      "id": "6a0d148e-2c3d-4bae-a4da-05dd2786a4fa",
+      "name": "Generate transaction pages"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/transactions/query/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $('yesterday calculation').item.json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $('yesterday calculation').item.json.endDate }}"
+            },
+            {
+              "name": "dateRangeType",
+              "value": "dateUpdated"
+            },
+            {
+              "name": "resultsPerPage",
+              "value": "200"
+            },
+            {
+              "name": "page",
+              "value": "={{ $json.page }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        656
+      ],
+      "id": "f52bb679-89e2-45c7-810e-2c42fb65e6ca",
+      "name": "transactions fetch all pages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const allRecords = [];\n\nfor (const item of $input.all()) {\n  let raw = item.json.data;\n  if (typeof raw === 'string') {\n    raw = JSON.parse(raw);\n  }\n  const msg = raw.message;\n  if (msg && msg.data && Array.isArray(msg.data)) {\n    allRecords.push(...msg.data);\n  }\n}\n\nreturn allRecords.map(r => {\n  const items = Array.isArray(r.items) ? r.items : [];\n  const itemNames = items.map(i => i.product).filter(Boolean).join(' | ');\n  const itemSkus = items.map(i => i.sku).filter(Boolean).join(' | ');\n\n  return {\n    json: {\n      transaction_id: r.transactionId,\n      parent_txn_id: r.parentTxnId || null,\n      order_id: r.orderId,\n      actual_order_id: r.actualOrderId,\n      customer_id: r.customerId,\n      campaign_id: r.campaignId,\n      campaign_name: r.campaignName || null,\n      order_type: r.orderType,\n      txn_type: r.txnType,\n      response_type: r.responseType,\n      response_text: r.responseText || null,\n      total_amount: parseFloat(r.totalAmount) || 0,\n      surcharge: parseFloat(r.surcharge) || 0,\n      billing_cycle_number: parseInt(r.billingCycleNumber) || null,\n      recycle_number: r.recycleNumber !== null ? parseInt(r.recycleNumber) : null,\n      merchant_id: r.merchantId,\n      merchant: r.merchant || null,\n      merchant_descriptor: r.merchantDescriptor || null,\n      cascade_id: r.cascadeId || null,\n      pay_source: r.paySource || null,\n      card_type: r.cardType || null,\n      card_bin: r.cardBin || null,\n      card_last4: r.cardLast4 || null,\n      card_is_prepaid: r.cardIsPrepaid === 1,\n      card_is_debit: r.cardIsDebit === 1,\n      avs_response: r.avsResponse || null,\n      cvv_response: r.cvvResponse || null,\n      is_chargedback: r.isChargedback === 1,\n      chargeback_amount: parseFloat(r.chargebackAmount) || 0,\n      chargeback_date: r.chargebackDate || null,\n      chargeback_reason_code: r.chargebackReasonCode || null,\n      chargeback_note: r.chargebackNote || null,\n      refund_reason: r.refundReason || null,\n      country: r.country || null,\n      currency_code: r.currencyCode || null,\n      ip_address: r.ipAddress || null,\n      utm_source: r.UTMSource || null,\n      utm_medium: r.UTMMedium || null,\n      utm_campaign: r.UTMCampaign || null,\n      utm_term: r.UTMTerm || null,\n      utm_content: r.UTMContent || null,\n      custom1: r.custom1 || null,\n      custom2: r.custom2 || null,\n      funnel_reference_id: r.funnelReferenceId || null,\n      item_count: items.length,\n      item_names: itemNames || null,\n      item_skus: itemSkus || null,\n      date_created: r.dateCreated,\n      date_updated: r.dateUpdated || null\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        656
+      ],
+      "id": "73b43540-4629-45b9-b50f-149d03f9ca10",
+      "name": "clean transactions"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_cc_transactions",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        656,
+        656
+      ],
+      "id": "c8a47423-6715-47dd-81f6-5e12eb335968",
+      "name": "Insert transactions",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.checkoutchamp.com/reports/projected-billing/",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "loginId",
+              "value": "YOUR_CHECKOUTCHAMP_API_LOGIN"
+            },
+            {
+              "name": "password",
+              "value": "YOUR_CHECKOUTCHAMP_API_PASSWORD"
+            },
+            {
+              "name": "startDate",
+              "value": "={{ $json.startDate }}"
+            },
+            {
+              "name": "endDate",
+              "value": "={{ $json.endDate }}"
+            },
+            {
+              "name": "reportType",
+              "value": "campaign"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -240,
+        848
+      ],
+      "id": "919888b5-b8ce-4c5d-99c1-f40f627d60d8",
+      "name": "projected billing (next 30 days)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = JSON.parse($input.first().json.data);\nconst message = raw.message;\nconst results = [];\n\nfor (const [campaignKey, campaignData] of Object.entries(message)) {\n  const campaignId = campaignData.id;\n  const campaignName = campaignKey;\n\n  for (const [key, value] of Object.entries(campaignData)) {\n    if (key === 'id') continue;\n    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(key)) continue;\n\n    results.push({\n      json: {\n        campaign_id: campaignId,\n        campaign_name: campaignName,\n        billing_date: key,\n        projected_count: parseInt(value.count) || 0,\n        projected_revenue: parseFloat(value.revenue.replace(/[$,]/g, '')) || 0,\n        ingested_at: new Date().toISOString()\n      }\n    });\n  }\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        848
+      ],
+      "id": "c4c4bc66-1304-4eb0-b899-a7487305f9f4",
+      "name": "clean projected billing"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_cc_projected_billing",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        208,
+        848
+      ],
+      "id": "dfa18538-8451-47ca-8e00-e7fdd6f78962",
+      "name": "Insert projected billing",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "yesterday calculation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "monthly calculations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "yesterday calculation": {
+      "main": [
+        [
+          {
+            "node": "order summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "transactions summary",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "purchases page 1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "orders page 1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "transactions page 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "order summary": {
+      "main": [
+        [
+          {
+            "node": "clean order summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clean order summary": {
+      "main": [
+        [
+          {
+            "node": "Insert order summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transactions summary": {
+      "main": [
+        [
+          {
+            "node": "clean transactions summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clean transactions summary": {
+      "main": [
+        [
+          {
+            "node": "Insert transactions summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "purchases page 1": {
+      "main": [
+        [
+          {
+            "node": "Generate purchase pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate purchase pages": {
+      "main": [
+        [
+          {
+            "node": "purchases fetch all pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "purchases fetch all pages": {
+      "main": [
+        [
+          {
+            "node": "clean purchases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clean purchases": {
+      "main": [
+        [
+          {
+            "node": "Insert purchases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "orders page 1": {
+      "main": [
+        [
+          {
+            "node": "Generate order pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate order pages": {
+      "main": [
+        [
+          {
+            "node": "orders fetch all pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "orders fetch all pages": {
+      "main": [
+        [
+          {
+            "node": "clean orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clean orders": {
+      "main": [
+        [
+          {
+            "node": "Insert orders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transactions page 1": {
+      "main": [
+        [
+          {
+            "node": "Generate transaction pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate transaction pages": {
+      "main": [
+        [
+          {
+            "node": "transactions fetch all pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "transactions fetch all pages": {
+      "main": [
+        [
+          {
+            "node": "clean transactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clean transactions": {
+      "main": [
+        [
+          {
+            "node": "Insert transactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "monthly calculations": {
+      "main": [
+        [
+          {
+            "node": "projected billing (next 30 days)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "projected billing (next 30 days)": {
+      "main": [
+        [
+          {
+            "node": "clean projected billing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "clean projected billing": {
+      "main": [
+        [
+          {
+            "node": "Insert projected billing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,238 @@
+{
+  "name": "Meta ads daily (SyncWith sheet to BigQuery)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        192,
+        0
+      ],
+      "id": "8e887d12-b6ee-46f8-805a-34a5a897c092",
+      "name": "Daily 10am"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SYNCWITH_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Meta ads daily",
+          "mode": "name"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A2:T"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        0
+      ],
+      "id": "1813d97b-7fe7-4551-b7b1-36c731d5d89a",
+      "name": "Read SyncWith Meta Ads Sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const r = item.json;\n\n  if (!r['Day'] || r['Amount spent'] === undefined || r['Amount spent'] === '') continue;\n\n  const spend = parseFloat(r['Amount spent']) || 0;\n  const impressions = parseInt(r['Impressions']) || 0;\n  const link_clicks = parseInt(r['Link clicks']) || 0;\n  const unique_outbound_clicks = parseInt(r['Unique outbound clicks']) || 0;\n  const landing_page_views = parseInt(r['Landing page views']) || 0;\n  const reach = parseInt(r['Reach']) || 0;\n\n  results.push({\n    json: {\n      ingested_at: new Date().toISOString(),\n      source: 'syncwith_meta_ads',\n      date: r['Day'],\n      account_id: String(r['Account ID'] || ''),\n      account_name: r['Account name'] || '',\n      campaign_id: String(r['Campaign ID'] || ''),\n      campaign_name: r['Campaign name'] || '',\n      region: r['Region'] || '',\n      country: r['Country'] || 'ALL',\n      impressions,\n      reach,\n      frequency: reach > 0 ? parseFloat((impressions / reach).toFixed(4)) : 0,\n      spend,\n      link_clicks,\n      unique_outbound_clicks,\n      ctr: impressions > 0 ? parseFloat((link_clicks / impressions).toFixed(6)) : 0,\n      cpc: link_clicks > 0 ? parseFloat((spend / link_clicks).toFixed(4)) : 0,\n      cpm: impressions > 0 ? parseFloat((spend / impressions * 1000).toFixed(4)) : 0,\n      landing_page_views,\n      cost_per_landing_page_view: landing_page_views > 0 ? parseFloat((spend / landing_page_views).toFixed(4)) : 0,\n      click_to_lpv_dropoff_pct: unique_outbound_clicks > 0\n        ? parseFloat(((unique_outbound_clicks - landing_page_views) / unique_outbound_clicks).toFixed(6))\n        : 0,\n    }\n  });\n}\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "22387439-4bc0-4907-b536-1b13fd54381b",
+      "name": "Transform to Raw Schema"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_meta",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "source",
+              "fieldValue": "={{ $json.source }}"
+            },
+            {
+              "fieldId": "date",
+              "fieldValue": "={{ $json.date }}"
+            },
+            {
+              "fieldId": "account_id",
+              "fieldValue": "={{ $json.account_id }}"
+            },
+            {
+              "fieldId": "account_name",
+              "fieldValue": "={{ $json.account_name }}"
+            },
+            {
+              "fieldId": "campaign_id",
+              "fieldValue": "={{ $json.campaign_id }}"
+            },
+            {
+              "fieldId": "campaign_name",
+              "fieldValue": "={{ $json.campaign_name }}"
+            },
+            {
+              "fieldId": "region",
+              "fieldValue": "={{ $json.region }}"
+            },
+            {
+              "fieldId": "country",
+              "fieldValue": "={{ $json.country }}"
+            },
+            {
+              "fieldId": "impressions",
+              "fieldValue": "={{ $json.impressions }}"
+            },
+            {
+              "fieldId": "reach",
+              "fieldValue": "={{ $json.reach }}"
+            },
+            {
+              "fieldId": "frequency",
+              "fieldValue": "={{ $json.frequency }}"
+            },
+            {
+              "fieldId": "spend",
+              "fieldValue": "={{ $json.spend }}"
+            },
+            {
+              "fieldId": "link_clicks",
+              "fieldValue": "={{ $json.link_clicks }}"
+            },
+            {
+              "fieldId": "unique_outbound_clicks",
+              "fieldValue": "={{ $json.unique_outbound_clicks }}"
+            },
+            {
+              "fieldId": "ctr",
+              "fieldValue": "={{ $json.ctr }}"
+            },
+            {
+              "fieldId": "cpc",
+              "fieldValue": "={{ $json.cpc }}"
+            },
+            {
+              "fieldId": "cpm",
+              "fieldValue": "={{ $json.cpm }}"
+            },
+            {
+              "fieldId": "landing_page_views",
+              "fieldValue": "={{ $json.landing_page_views }}"
+            },
+            {
+              "fieldId": "cost_per_landing_page_view",
+              "fieldValue": "={{ $json.cost_per_landing_page_view }}"
+            },
+            {
+              "fieldId": "click_to_lpv_dropoff_pct",
+              "fieldValue": "={{ $json.click_to_lpv_dropoff_pct }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        880,
+        0
+      ],
+      "id": "dde8100b-5764-4aa0-a925-fcbc68c09478",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 10am": {
+      "main": [
+        [
+          {
+            "node": "Read SyncWith Meta Ads Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read SyncWith Meta Ads Sheet": {
+      "main": [
+        [
+          {
+            "node": "Transform to Raw Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform to Raw Schema": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

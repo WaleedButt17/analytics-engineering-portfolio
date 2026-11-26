@@ -1,0 +1,127 @@
+{
+  "name": "Exchange Rates (daily FX to USD)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 0 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d7c2d5b9-3f63-4bcb-9516-b64905d1aada",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.frankfurter.app/latest?from=USD",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        240,
+        0
+      ],
+      "id": "4254e00c-53fc-418a-af5e-66804b6609b9",
+      "name": "Fetch Exchange Rates"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst yesterday = new Date(now);\nyesterday.setDate(yesterday.getDate() - 1);\nconst date = yesterday.toISOString().split('T')[0];\nconst ingested_at = now.toISOString();\n\nconst data = $input.first().json;\nconst rates = data.rates;\n\nconst rows = [];\n\nfor (const [currency, rate] of Object.entries(rates)) {\n  rows.push({\n    json: {\n      date,\n      from_currency: currency,\n      to_currency: 'USD',\n      rate: 1 / rate,\n      ingested_at\n    }\n  });\n}\n\nrows.push({\n  json: {\n    date,\n    from_currency: 'USD',\n    to_currency: 'USD',\n    rate: 1.0,\n    ingested_at\n  }\n});\n\nreturn rows;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "8e334c1c-7b14-4504-8f6a-6ef29808d8dc",
+      "name": "Transform Rates"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_exchange_rates",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        720,
+        0
+      ],
+      "id": "dd154852-aeb9-4534-a597-a16091702e74",
+      "name": "Insert Exchange Rates",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Exchange Rates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Exchange Rates": {
+      "main": [
+        [
+          {
+            "node": "Transform Rates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Rates": {
+      "main": [
+        [
+          {
+            "node": "Insert Exchange Rates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,1848 @@
+{
+  "name": "Shopify sessions daily (ShopifyQL): by country and UTM, and by landing page",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 3
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -3040,
+        1264
+      ],
+      "id": "7bd02441-eb5c-4a00-8e92-2d8710528151",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-1.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, online_store_visitors, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, session_country, utm_source, utm_medium, utm_campaign SINCE yesterday UNTIL yesterday LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        200
+      ],
+      "id": "6e12f545-bcfa-4f87-8b89-66442beac80a",
+      "name": "Shopify store_1 by country and UTM",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_1_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_1',\n    day: row.day || null,\n    session_country: row.session_country || null,\n    utm_source: row.utm_source || null,\n    utm_medium: row.utm_medium || null,\n    utm_campaign: row.utm_campaign || null,\n    sessions: parseInt(row.sessions) || 0,\n    online_store_visitors: parseInt(row.online_store_visitors) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        200
+      ],
+      "id": "fcd08cfb-8855-4e48-96e0-7e73ec611d9e",
+      "name": "Transform store_1 by country and UTM"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "session_country",
+              "fieldValue": "={{ $json.session_country }}"
+            },
+            {
+              "fieldId": "utm_source",
+              "fieldValue": "={{ $json.utm_source }}"
+            },
+            {
+              "fieldId": "utm_medium",
+              "fieldValue": "={{ $json.utm_medium }}"
+            },
+            {
+              "fieldId": "utm_campaign",
+              "fieldValue": "={{ $json.utm_campaign }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "online_store_visitors",
+              "fieldValue": "={{ $json.online_store_visitors }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        200
+      ],
+      "id": "74f92c51-2c09-4f60-a74f-731de21fe94e",
+      "name": "Insert store_1 by country and UTM",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-2.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, online_store_visitors, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, session_country, utm_source, utm_medium, utm_campaign SINCE yesterday UNTIL yesterday LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        392
+      ],
+      "id": "5c60b399-2cb6-4dcf-a72d-5ff4f888fd99",
+      "name": "Shopify store_2 by country and UTM",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_2_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_2',\n    day: row.day || null,\n    session_country: row.session_country || null,\n    utm_source: row.utm_source || null,\n    utm_medium: row.utm_medium || null,\n    utm_campaign: row.utm_campaign || null,\n    sessions: parseInt(row.sessions) || 0,\n    online_store_visitors: parseInt(row.online_store_visitors) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        392
+      ],
+      "id": "f6db0bdd-b076-49cd-84a2-fbf244691a45",
+      "name": "Transform store_2 by country and UTM"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "session_country",
+              "fieldValue": "={{ $json.session_country }}"
+            },
+            {
+              "fieldId": "utm_source",
+              "fieldValue": "={{ $json.utm_source }}"
+            },
+            {
+              "fieldId": "utm_medium",
+              "fieldValue": "={{ $json.utm_medium }}"
+            },
+            {
+              "fieldId": "utm_campaign",
+              "fieldValue": "={{ $json.utm_campaign }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "online_store_visitors",
+              "fieldValue": "={{ $json.online_store_visitors }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        392
+      ],
+      "id": "07bffd36-d545-492d-9e1f-c63d6a4e36da",
+      "name": "Insert store_2 by country and UTM",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-3.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, online_store_visitors, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, session_country, utm_source, utm_medium, utm_campaign SINCE yesterday UNTIL yesterday LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        584
+      ],
+      "id": "1d9c4330-d795-4901-a548-09ff31d63c53",
+      "name": "Shopify store_3 by country and UTM",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_3_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_3',\n    day: row.day || null,\n    session_country: row.session_country || null,\n    utm_source: row.utm_source || null,\n    utm_medium: row.utm_medium || null,\n    utm_campaign: row.utm_campaign || null,\n    sessions: parseInt(row.sessions) || 0,\n    online_store_visitors: parseInt(row.online_store_visitors) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        584
+      ],
+      "id": "cdcf96e6-d518-47f0-8074-0e20bdf9d036",
+      "name": "Transform store_3 by country and UTM"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "session_country",
+              "fieldValue": "={{ $json.session_country }}"
+            },
+            {
+              "fieldId": "utm_source",
+              "fieldValue": "={{ $json.utm_source }}"
+            },
+            {
+              "fieldId": "utm_medium",
+              "fieldValue": "={{ $json.utm_medium }}"
+            },
+            {
+              "fieldId": "utm_campaign",
+              "fieldValue": "={{ $json.utm_campaign }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "online_store_visitors",
+              "fieldValue": "={{ $json.online_store_visitors }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        584
+      ],
+      "id": "5e937290-0c37-47e7-80ce-a9a30d8bebae",
+      "name": "Insert store_3 by country and UTM",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-4.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, online_store_visitors, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, session_country, utm_source, utm_medium, utm_campaign SINCE yesterday UNTIL yesterday LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        776
+      ],
+      "id": "c79a732b-e1c2-4cdb-bbf2-46bda533d75d",
+      "name": "Shopify store_4 by country and UTM",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_4_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_4',\n    day: row.day || null,\n    session_country: row.session_country || null,\n    utm_source: row.utm_source || null,\n    utm_medium: row.utm_medium || null,\n    utm_campaign: row.utm_campaign || null,\n    sessions: parseInt(row.sessions) || 0,\n    online_store_visitors: parseInt(row.online_store_visitors) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        776
+      ],
+      "id": "9501416b-00cd-4751-91d1-c07ef6d20a9c",
+      "name": "Transform store_4 by country and UTM"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "session_country",
+              "fieldValue": "={{ $json.session_country }}"
+            },
+            {
+              "fieldId": "utm_source",
+              "fieldValue": "={{ $json.utm_source }}"
+            },
+            {
+              "fieldId": "utm_medium",
+              "fieldValue": "={{ $json.utm_medium }}"
+            },
+            {
+              "fieldId": "utm_campaign",
+              "fieldValue": "={{ $json.utm_campaign }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "online_store_visitors",
+              "fieldValue": "={{ $json.online_store_visitors }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        776
+      ],
+      "id": "a47e9c53-fa0f-451f-88fb-e48f7a912573",
+      "name": "Insert store_4 by country and UTM",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-5.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, online_store_visitors, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, session_country, utm_source, utm_medium, utm_campaign SINCE yesterday UNTIL yesterday LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        968
+      ],
+      "id": "a165cc54-2668-4d9c-b522-976e132928d8",
+      "name": "Shopify store_5 by country and UTM",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_5_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_5',\n    day: row.day || null,\n    session_country: row.session_country || null,\n    utm_source: row.utm_source || null,\n    utm_medium: row.utm_medium || null,\n    utm_campaign: row.utm_campaign || null,\n    sessions: parseInt(row.sessions) || 0,\n    online_store_visitors: parseInt(row.online_store_visitors) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        968
+      ],
+      "id": "26d6f9d4-fdf7-4339-b411-ff032a728527",
+      "name": "Transform store_5 by country and UTM"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "session_country",
+              "fieldValue": "={{ $json.session_country }}"
+            },
+            {
+              "fieldId": "utm_source",
+              "fieldValue": "={{ $json.utm_source }}"
+            },
+            {
+              "fieldId": "utm_medium",
+              "fieldValue": "={{ $json.utm_medium }}"
+            },
+            {
+              "fieldId": "utm_campaign",
+              "fieldValue": "={{ $json.utm_campaign }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "online_store_visitors",
+              "fieldValue": "={{ $json.online_store_visitors }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        968
+      ],
+      "id": "9bcd71e9-1b22-4b99-a775-696d19dc845e",
+      "name": "Insert store_5 by country and UTM",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-6.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, online_store_visitors, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, session_country, utm_source, utm_medium, utm_campaign SINCE yesterday UNTIL yesterday LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        1160
+      ],
+      "id": "192d7b5a-168f-47a2-800d-428ee06878c8",
+      "name": "Shopify store_6 by country and UTM",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_6_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_6',\n    day: row.day || null,\n    session_country: row.session_country || null,\n    utm_source: row.utm_source || null,\n    utm_medium: row.utm_medium || null,\n    utm_campaign: row.utm_campaign || null,\n    sessions: parseInt(row.sessions) || 0,\n    online_store_visitors: parseInt(row.online_store_visitors) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        1160
+      ],
+      "id": "85f2e17b-628a-4161-9c9a-7cea86dbcd6f",
+      "name": "Transform store_6 by country and UTM"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "session_country",
+              "fieldValue": "={{ $json.session_country }}"
+            },
+            {
+              "fieldId": "utm_source",
+              "fieldValue": "={{ $json.utm_source }}"
+            },
+            {
+              "fieldId": "utm_medium",
+              "fieldValue": "={{ $json.utm_medium }}"
+            },
+            {
+              "fieldId": "utm_campaign",
+              "fieldValue": "={{ $json.utm_campaign }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "online_store_visitors",
+              "fieldValue": "={{ $json.online_store_visitors }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        1160
+      ],
+      "id": "52cf8145-b60e-4ed3-9627-892a5642b1a9",
+      "name": "Insert store_6 by country and UTM",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-1.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, landing_page_path SINCE yesterday UNTIL yesterday ORDER BY sessions DESC LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        1352
+      ],
+      "id": "d7917c29-fde4-47f3-ab3c-f2bbe0efe9f0",
+      "name": "Shopify store_1 by landing page",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_1_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_1',\n    day: row.day || null,\n    landing_page_path: row.landing_page_path || null,\n    sessions: parseInt(row.sessions) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        1352
+      ],
+      "id": "830459a3-673d-4831-b4aa-e785df374839",
+      "name": "Transform store_1 by landing page"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions_by_page",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "landing_page_path",
+              "fieldValue": "={{ $json.landing_page_path }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        1352
+      ],
+      "id": "3683e81b-1167-4f35-911d-2dcd460bc459",
+      "name": "Insert store_1 by landing page",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-2.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, landing_page_path SINCE yesterday UNTIL yesterday ORDER BY sessions DESC LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        1544
+      ],
+      "id": "ecc232ed-c1f7-4d32-bbe9-eeeac2b8bed0",
+      "name": "Shopify store_2 by landing page",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_2_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_2',\n    day: row.day || null,\n    landing_page_path: row.landing_page_path || null,\n    sessions: parseInt(row.sessions) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        1544
+      ],
+      "id": "92813b7f-7ad0-49b0-939f-e8475c6591da",
+      "name": "Transform store_2 by landing page"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions_by_page",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "landing_page_path",
+              "fieldValue": "={{ $json.landing_page_path }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        1544
+      ],
+      "id": "77dab801-e829-4f3b-b615-1f62329ff445",
+      "name": "Insert store_2 by landing page",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-3.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, landing_page_path SINCE yesterday UNTIL yesterday ORDER BY sessions DESC LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        1736
+      ],
+      "id": "390b77ce-51f5-40e2-a1ff-f8b95c3bf641",
+      "name": "Shopify store_3 by landing page",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_3_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_3',\n    day: row.day || null,\n    landing_page_path: row.landing_page_path || null,\n    sessions: parseInt(row.sessions) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        1736
+      ],
+      "id": "3064f94f-f2f3-48fd-a931-33a2326c9b09",
+      "name": "Transform store_3 by landing page"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions_by_page",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "landing_page_path",
+              "fieldValue": "={{ $json.landing_page_path }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        1736
+      ],
+      "id": "d40d7dc9-5009-459e-9866-7b5423188f33",
+      "name": "Insert store_3 by landing page",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-4.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, landing_page_path SINCE yesterday UNTIL yesterday ORDER BY sessions DESC LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        1928
+      ],
+      "id": "5d069fcf-a57d-41ed-a232-2f2a392ee7e4",
+      "name": "Shopify store_4 by landing page",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_4_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_4',\n    day: row.day || null,\n    landing_page_path: row.landing_page_path || null,\n    sessions: parseInt(row.sessions) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        1928
+      ],
+      "id": "94522ccf-1f91-444a-b6ec-97b9f9f4a029",
+      "name": "Transform store_4 by landing page"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions_by_page",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "landing_page_path",
+              "fieldValue": "={{ $json.landing_page_path }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        1928
+      ],
+      "id": "d39f2f8e-8ce9-491e-8605-e1b179134ebc",
+      "name": "Insert store_4 by landing page",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-5.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, landing_page_path SINCE yesterday UNTIL yesterday ORDER BY sessions DESC LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        2120
+      ],
+      "id": "f4ec7af8-2969-4eea-bced-c4ceab36a83e",
+      "name": "Shopify store_5 by landing page",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_5_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_5',\n    day: row.day || null,\n    landing_page_path: row.landing_page_path || null,\n    sessions: parseInt(row.sessions) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        2120
+      ],
+      "id": "3adb70bd-54c3-42ac-8be8-bab7fbf8bfca",
+      "name": "Transform store_5 by landing page"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions_by_page",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "landing_page_path",
+              "fieldValue": "={{ $json.landing_page_path }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        2120
+      ],
+      "id": "f0f687f8-e9fb-4ec0-8dcb-ca46cf2d9771",
+      "name": "Insert store_5 by landing page",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://store-6.myshopify.com/admin/api/2026-01/graphql.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"query\": \"query { shopifyqlQuery(query: \\\"FROM sessions SHOW sessions, sessions_with_cart_additions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate GROUP BY day, landing_page_path SINCE yesterday UNTIL yesterday ORDER BY sessions DESC LIMIT 5000\\\") { tableData { columns { name dataType displayName } rows } parseErrors } }\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2816,
+        2312
+      ],
+      "id": "88465138-36c0-4f4e-867c-024d05e06339",
+      "name": "Shopify store_6 by landing page",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "SHOPIFY_STORE_6_CREDENTIAL_ID",
+          "name": "Shopify Admin token (X-Shopify-Access-Token), store_6"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst rows = response.data.shopifyqlQuery.tableData.rows;\nconst ingested_at = new Date().toISOString();\nif (!rows || rows.length === 0) return [];\nreturn rows.map(row => ({\n  json: {\n    ingested_at,\n    store: 'store_6',\n    day: row.day || null,\n    landing_page_path: row.landing_page_path || null,\n    sessions: parseInt(row.sessions) || 0,\n    sessions_with_cart_additions: parseInt(row.sessions_with_cart_additions) || 0,\n    sessions_that_reached_checkout: parseInt(row.sessions_that_reached_checkout) || 0,\n    sessions_that_completed_checkout: parseInt(row.sessions_that_completed_checkout) || 0,\n    conversion_rate: parseFloat(row.conversion_rate) || 0\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2592,
+        2312
+      ],
+      "id": "979debd1-6131-4dcc-adb8-91b639f3fa26",
+      "name": "Transform store_6 by landing page"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_sessions_by_page",
+          "mode": "id"
+        },
+        "options": {},
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "ingested_at",
+              "fieldValue": "={{ $json.ingested_at }}"
+            },
+            {
+              "fieldId": "store",
+              "fieldValue": "={{ $json.store }}"
+            },
+            {
+              "fieldId": "day",
+              "fieldValue": "={{ $json.day }}"
+            },
+            {
+              "fieldId": "landing_page_path",
+              "fieldValue": "={{ $json.landing_page_path }}"
+            },
+            {
+              "fieldId": "sessions",
+              "fieldValue": "={{ $json.sessions }}"
+            },
+            {
+              "fieldId": "sessions_with_cart_additions",
+              "fieldValue": "={{ $json.sessions_with_cart_additions }}"
+            },
+            {
+              "fieldId": "sessions_that_reached_checkout",
+              "fieldValue": "={{ $json.sessions_that_reached_checkout }}"
+            },
+            {
+              "fieldId": "sessions_that_completed_checkout",
+              "fieldValue": "={{ $json.sessions_that_completed_checkout }}"
+            },
+            {
+              "fieldId": "conversion_rate",
+              "fieldValue": "={{ $json.conversion_rate }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -2368,
+        2312
+      ],
+      "id": "b754ff15-f012-4683-88a7-1c04a6f0ae70",
+      "name": "Insert store_6 by landing page",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Shopify store_1 by country and UTM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_2 by country and UTM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_3 by country and UTM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_4 by country and UTM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_5 by country and UTM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_6 by country and UTM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_1 by landing page",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_2 by landing page",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_3 by landing page",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_4 by landing page",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_5 by landing page",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Shopify store_6 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_1 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Transform store_1 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_1 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Insert store_1 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_2 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Transform store_2 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_2 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Insert store_2 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_3 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Transform store_3 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_3 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Insert store_3 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_4 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Transform store_4 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_4 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Insert store_4 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_5 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Transform store_5 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_5 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Insert store_5 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_6 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Transform store_6 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_6 by country and UTM": {
+      "main": [
+        [
+          {
+            "node": "Insert store_6 by country and UTM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_1 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Transform store_1 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_1 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Insert store_1 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_2 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Transform store_2 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_2 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Insert store_2 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_3 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Transform store_3 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_3 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Insert store_3 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_4 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Transform store_4 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_4 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Insert store_4 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_5 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Transform store_5 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_5 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Insert store_5 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Shopify store_6 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Transform store_6 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform store_6 by landing page": {
+      "main": [
+        [
+          {
+            "node": "Insert store_6 by landing page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

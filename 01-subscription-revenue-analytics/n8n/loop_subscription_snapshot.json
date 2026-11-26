@@ -1,0 +1,297 @@
+{
+  "name": "Loop subscription daily snapshot (one copy per pair of stores)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "20 0 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -224,
+        768
+      ],
+      "id": "f5732cba-5d24-44e0-b081-2b2a05e17059",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://api.loopsubscriptions.com/admin/2023-10/subscription",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "pageSize",
+              "value": "250"
+            },
+            {
+              "name": "pageNo",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "pageNo",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.pageInfo.hasNextPage }}",
+              "requestInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        672
+      ],
+      "id": "8e033efa-6e33-46e6-9d83-9b784533cbb8",
+      "name": "Loop API store_1",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "LOOP_STORE_1_CREDENTIAL_ID",
+          "name": "Loop API token (X-Loop-Token), store_1"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst yesterday = new Date(now);\nyesterday.setDate(yesterday.getDate() - 1);\nyesterday.setHours(12, 0, 0, 0);\nyesterday.setMilliseconds(0);\nconst ingested_at = yesterday.toISOString();\nconst store = 'store_1';\nconst allRows = [];\nfor (const item of $input.all()) {\n  const subs = item.json.data || [];\n  for (const sub of subs) {\n    const line = (sub.lines && sub.lines.length > 0) ? sub.lines[0] : {};\n    allRows.push({\n      ingested_at, store,\n      subscription_id: sub.id || null,\n      shopify_id: sub.shopifyId || null,\n      origin_order_shopify_id: sub.originOrderShopifyId || null,\n      created_at: sub.createdAt || null,\n      updated_at: sub.updatedAt || null,\n      status: sub.status || null,\n      cancellation_reason: sub.cancellationReason || null,\n      cancellation_comment: sub.cancellationComment || null,\n      completed_orders_count: sub.completedOrdersCount || 0,\n      paused_at: sub.pausedAt || null,\n      cancelled_at: sub.cancelledAt || null,\n      total_line_item_price: sub.totalLineItemPrice || 0,\n      total_line_item_discounted_price: sub.totalLineItemDiscountedPrice || 0,\n      delivery_price: sub.deliveryPrice || 0,\n      currency_code: sub.currencyCode || null,\n      billing_interval: (sub.billingPolicy || {}).interval || null,\n      billing_interval_count: (sub.billingPolicy || {}).intervalCount || null,\n      next_billing_date_epoch: sub.nextBillingDateEpoch || null,\n      last_payment_status: sub.lastPaymentStatus || null,\n      is_prepaid: sub.isPrepaid || false,\n      is_marked_for_cancellation: sub.isMarkedForCancellation || false,\n      customer_id: (sub.customer || {}).id || null,\n      customer_shopify_id: (sub.customer || {}).shopifyId || null,\n      customer_email: (sub.customer || {}).email || null,\n      country_code: (sub.shippingAddress || {}).countryCode || null,\n      province_code: (sub.shippingAddress || {}).provinceCode || null,\n      product_shopify_id: line.productShopifyId || null,\n      variant_shopify_id: line.variantShopifyId || null,\n      product_title: line.productTitle || null,\n      variant_title: line.variantTitle || null,\n      sku: line.sku || null,\n      price: parseFloat(line.price) || 0,\n      discounted_price: parseFloat(line.discountedPrice) || 0,\n      base_price: parseFloat(line.basePrice) || 0,\n      quantity: line.quantity || 0,\n      delivery_method: (sub.deliveryMethod || {}).title || null\n    });\n  }\n}\nreturn allRows.map(row => ({ json: row }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        672
+      ],
+      "id": "38302c16-649d-410c-bdc8-14d29cf297f1",
+      "name": "Flatten store_1"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_loop_subscriptions",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        448,
+        672
+      ],
+      "id": "e218a696-1887-4a14-b4b2-e131526c6fb2",
+      "name": "Insert store_1",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.loopsubscriptions.com/admin/2023-10/subscription",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "pageSize",
+              "value": "250"
+            },
+            {
+              "name": "pageNo",
+              "value": "1"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "pageNo",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.pageInfo.hasNextPage }}",
+              "requestInterval": 2000
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        864
+      ],
+      "id": "aa1dd01c-4bee-4cfd-92e5-f2123c5fd46f",
+      "name": "Loop API store_2",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "LOOP_STORE_2_CREDENTIAL_ID",
+          "name": "Loop API token (X-Loop-Token), store_2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst yesterday = new Date(now);\nyesterday.setDate(yesterday.getDate() - 1);\nyesterday.setHours(12, 0, 0, 0);\nyesterday.setMilliseconds(0);\nconst ingested_at = yesterday.toISOString();\nconst store = 'store_2';\nconst allRows = [];\nfor (const item of $input.all()) {\n  const subs = item.json.data || [];\n  for (const sub of subs) {\n    const line = (sub.lines && sub.lines.length > 0) ? sub.lines[0] : {};\n    allRows.push({\n      ingested_at, store,\n      subscription_id: sub.id || null,\n      shopify_id: sub.shopifyId || null,\n      origin_order_shopify_id: sub.originOrderShopifyId || null,\n      created_at: sub.createdAt || null,\n      updated_at: sub.updatedAt || null,\n      status: sub.status || null,\n      cancellation_reason: sub.cancellationReason || null,\n      cancellation_comment: sub.cancellationComment || null,\n      completed_orders_count: sub.completedOrdersCount || 0,\n      paused_at: sub.pausedAt || null,\n      cancelled_at: sub.cancelledAt || null,\n      total_line_item_price: sub.totalLineItemPrice || 0,\n      total_line_item_discounted_price: sub.totalLineItemDiscountedPrice || 0,\n      delivery_price: sub.deliveryPrice || 0,\n      currency_code: sub.currencyCode || null,\n      billing_interval: (sub.billingPolicy || {}).interval || null,\n      billing_interval_count: (sub.billingPolicy || {}).intervalCount || null,\n      next_billing_date_epoch: sub.nextBillingDateEpoch || null,\n      last_payment_status: sub.lastPaymentStatus || null,\n      is_prepaid: sub.isPrepaid || false,\n      is_marked_for_cancellation: sub.isMarkedForCancellation || false,\n      customer_id: (sub.customer || {}).id || null,\n      customer_shopify_id: (sub.customer || {}).shopifyId || null,\n      customer_email: (sub.customer || {}).email || null,\n      country_code: (sub.shippingAddress || {}).countryCode || null,\n      province_code: (sub.shippingAddress || {}).provinceCode || null,\n      product_shopify_id: line.productShopifyId || null,\n      variant_shopify_id: line.variantShopifyId || null,\n      product_title: line.productTitle || null,\n      variant_title: line.variantTitle || null,\n      sku: line.sku || null,\n      price: parseFloat(line.price) || 0,\n      discounted_price: parseFloat(line.discountedPrice) || 0,\n      base_price: parseFloat(line.basePrice) || 0,\n      quantity: line.quantity || 0,\n      delivery_method: (sub.deliveryMethod || {}).title || null\n    });\n  }\n}\nreturn allRows.map(row => ({ json: row }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        864
+      ],
+      "id": "18727e51-3187-45d5-85f1-eb79f9f2c8c9",
+      "name": "Flatten store_2"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_loop_subscriptions",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        448,
+        864
+      ],
+      "id": "9d441956-ec42-404a-97bc-efd40eafd88c",
+      "name": "Insert store_2",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Loop API store_1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop API store_2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop API store_1": {
+      "main": [
+        [
+          {
+            "node": "Flatten store_1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten store_1": {
+      "main": [
+        [
+          {
+            "node": "Insert store_1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop API store_2": {
+      "main": [
+        [
+          {
+            "node": "Flatten store_2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Flatten store_2": {
+      "main": [
+        [
+          {
+            "node": "Insert store_2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "name": "Shopify orders daily (SyncWith sheet to BigQuery)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c3d1c2a7-6896-46d7-9351-8c5534aae1ae",
+      "name": "Daily 10am"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SYNCWITH_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "shopify orders daily",
+          "mode": "name"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRangeA1",
+              "range": "A2:BX"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        256,
+        0
+      ],
+      "id": "a4bb5e29-bb87-4bac-acb5-229f6de802ce",
+      "name": "Read SyncWith Shopify Orders Sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nconst parseAmount = (val) => {\n  if (val === null || val === undefined || val === '') return 0;\n  return parseFloat(String(val).replace(/[$,]/g, '')) || 0;\n};\n\nconst parseDate = (val) => {\n  if (!val || val === '') return null;\n  return val.split('T')[0];\n};\n\nfor (const item of items) {\n  const r = item.json;\n  if (!r['Day'] || !r['Order ID']) continue;\n\n  results.push({\n    json: {\n      ingested_at: new Date().toISOString(),\n      sale_id: r['Sale ID'] || null,\n      line_item_id: r['Line item ID'] || null,\n      line_type: r['Line type'] || null,\n      item_name: r['Item name at time of sale'] || null,\n      product_title_at_sale: r['Product title at time of sale'] || null,\n      product_variant_title_at_sale: r['Product variant title at time of sale'] || null,\n      product_variant_sku_at_sale: r['Product variant SKU at time of sale'] || null,\n      product_variant_price_at_sale: parseAmount(r['Product variant price at time of sale']),\n      ordered_quantity: parseInt(r['Ordered quantity']) || 0,\n      gross_sales: parseAmount(r['Gross sales']),\n      net_sales: parseAmount(r['Net sales']),\n      refunds: parseAmount(r['Refunds']),\n      discounts: parseAmount(r['Discounts']),\n      taxes: parseAmount(r['Taxes']),\n      unit_price: parseAmount(r['Unit price']),\n      unit_price_after_discounts: parseAmount(r['Unit price after discounts']),\n      order_id: r['Order ID'] || null,\n      order_created_at_date: parseDate(r['Order created at date']),\n      order_fulfillment_status: r['Order fulfillment status'] || null,\n      payment_status: r['Payment status'] || null,\n      status: r['Status'] || null,\n      order_currency_code: r['Order currency code'] || null,\n      order_cancelled_at_date: parseDate(r['Order cancelled at date']),\n      source_name: r['Source name'] || null,\n      sales_channel_id: r['Sales channel ID'] || null,\n      sales_channel_name: r['Sales channel name'] || null,\n      is_pos_sale: r['Is POS sale'] === 'TRUE' || r['Is POS sale'] === true,\n      customer_id: r['Customer ID'] || null,\n      customer_name: r['Customer name'] || null,\n      customer_type: r['Customer type'] || null,\n      customer_email: r['Customer email'] || null,\n      shipping_country: r['Shipping country'] || null,\n      shipping_country_code: r['Shipping country code'] || null,\n      utm_source: r['utm_source'] || null,\n      utm_medium: r['utm_medium'] || null,\n      utm_campaign: r['utm_campaign'] || null,\n      utm_content: r['utm_content'] || null,\n      utm_term: r['utm_term'] || null,\n      landing_page_url: r['Landing page URL'] || null,\n      store_name: r['Store name'] || null,\n      myshopify_domain: r['MyShopify domain'] || null,\n      store_timezone: r['Store timezone'] || null,\n      order_type: r['orderType'] || null,\n      custom1: r['custom1'] || null,\n      custom2: r['custom2'] || null,\n      cart_id: r['cartId'] || null,\n      fbp: r['fbp'] || null,\n      fbc: r['fbc'] || null,\n      gclid: r['gclid'] || null,\n      product_type_custom: r['productType'] || null,\n      is_one_time: r['is_one_time'] || null,\n      zigpoll_attribution: r['Zigpoll: Post Purchase Survey - Attribution'] || null,\n      zigpoll_main_reason: r['Zigpoll: What is the main reason you bought from us?'] || null,\n      day: parseDate(r['Day']),\n      product_id: r['Product ID'] || null,\n      product_title: r['Product title'] || null,\n      product_type: r['Product type'] || null,\n      product_variant_id: r['Product variant ID'] || null,\n      product_variant_sku: r['Product variant SKU'] || null,\n      product_variant_title: r['Product variant title'] || null,\n      product_variant_price: parseAmount(r['Product variant price']),\n      product_variant_compare_at_price: parseAmount(r['Product variant compare at price']),\n      vendor: r['Vendor'] || null,\n      utm_source_shopify: r['UTM source'] || null,\n      utm_source_first_visit: r['UTM source (first visit)'] || null,\n      utm_campaign_name: r['UTM campaign name'] || null,\n      utm_campaign_name_first_visit: r['UTM campaign name (first visit)'] || null,\n      utm_medium_shopify: r['UTM medium'] || null,\n      utm_content_shopify: r['UTM content'] || null,\n      utm_term_first_visit: r['UTM term (first visit)'] || null,\n      utm_medium_first_visit: r['UTM medium (first visit)'] || null,\n      utm_content_first_visit: r['UTM content (first visit)'] || null,\n      customer_source: r['Customer source'] || null,\n      customer_source_type: r['Customer source type'] || null,\n      customer_source_first_visit: r['Customer source (first visit)'] || null,\n      customer_source_type_first_visit: r['Customer source type (first visit)'] || null,\n    }\n  });\n}\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ],
+      "id": "d8d79268-b02a-4622-ba38-e779c45e7e36",
+      "name": "Transform to Raw Schema"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "raw",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "daily_shopify_orders",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        688,
+        0
+      ],
+      "id": "93167781-ee1e-40fd-8f6c-9b111b5d98f3",
+      "name": "Insert rows in a table",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily 10am": {
+      "main": [
+        [
+          {
+            "node": "Read SyncWith Shopify Orders Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read SyncWith Shopify Orders Sheet": {
+      "main": [
+        [
+          {
+            "node": "Transform to Raw Schema",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform to Raw Schema": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "name": "n8n Error Notifications (set as the error workflow on every flow)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        32
+      ],
+      "id": "5020722c-0277-49ee-84d0-1e9f677356f1",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "sendTo": "alerts@example.com",
+        "subject": "=n8n Error: {{ $json.workflow.name }}",
+        "message": "=<h2>n8n Workflow Error</h2>\n<p><strong>Workflow:</strong> {{ $json.workflow.name }}</p>\n<p><strong>Failed Node:</strong> {{ $json.execution.lastNodeExecuted }}</p>\n<p><strong>Error:</strong> {{ $json.execution.error.message }}</p>\n<p><strong>Execution URL:</strong> <a href=\"{{ $json.execution.url }}\">View execution</a></p>\n<p><strong>Time:</strong> {{ $now.toFormat('yyyy-MM-dd HH:mm:ss') }}</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        32
+      ],
+      "id": "85765427-42a7-4440-a837-8cefa4dd6da1",
+      "name": "Send error email",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Send error email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,400 @@
+{
+  "name": "Adset Sync (new Meta ad sets to mapping sheet)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1120,
+        96
+      ],
+      "id": "0403b964-f030-4959-8a4f-f21716cc9c39",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "sqlQuery": "SELECT adset_id, adset_name, campaign_id, platform FROM ( SELECT CAST(r.adset_id AS STRING) AS adset_id, r.adset_name, CAST(r.campaign_id AS STRING) AS campaign_id, r.platform, ROW_NUMBER() OVER (PARTITION BY CAST(r.adset_id AS STRING) ORDER BY r.date DESC) AS rn FROM `YOUR_GCP_PROJECT_ID`.staging.v_raw_spend r WHERE r.platform = 'meta' AND r.adset_id IS NOT NULL AND r.date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) ) WHERE rn = 1 ORDER BY campaign_id, adset_name",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        -896,
+        96
+      ],
+      "id": "e481ac05-7fdf-48f9-bb8f-94fb2dd8e12b",
+      "name": "Get adsets from BigQuery",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_MAPPING_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Adset Sync",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -672,
+        96
+      ],
+      "id": "fca597ed-fa1a-4fc2-8a51-3ae6261a0d54",
+      "name": "Get rows from Adset Sync",
+      "executeOnce": true,
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const bqAdsets = $('Get adsets from BigQuery').all().map(item => ({\n  adset_id: String(item.json.adset_id),\n  adset_name: item.json.adset_name,\n  campaign_id: String(item.json.campaign_id),\n  platform: item.json.platform\n}));\n\nconst sheetAdsets = $('Get rows from Adset Sync').all().map(item => ({\n  row_number: item.json.row_number,\n  adset_id: String(item.json.adset_id),\n  adset_name: item.json.adset_name,\n  campaign_id: String(item.json.campaign_id)\n}));\n\nconst sheetMap = {};\nfor (const row of sheetAdsets) {\n  sheetMap[row.adset_id] = row;\n}\n\nconst seen = {};\nconst toAdd = [];\nconst toUpdate = [];\n\nfor (const bq of bqAdsets) {\n  if (seen[bq.adset_id]) continue;\n  seen[bq.adset_id] = true;\n\n  const existing = sheetMap[bq.adset_id];\n\n  if (!existing) {\n    toAdd.push({ json: {\n      adset_id: bq.adset_id,\n      adset_name: bq.adset_name,\n      campaign_id: bq.campaign_id,\n      platform: bq.platform,\n      action: 'add'\n    }});\n  } else if (existing.adset_name !== bq.adset_name) {\n    toUpdate.push({ json: {\n      adset_id: bq.adset_id,\n      adset_name: bq.adset_name,\n      campaign_id: bq.campaign_id,\n      platform: bq.platform,\n      row_number: existing.row_number,\n      action: 'update'\n    }});\n  }\n}\n\nreturn [...toAdd, ...toUpdate];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        96
+      ],
+      "id": "027771af-85ad-40e6-b640-a4f91bd57dea",
+      "name": "Compare adsets"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3834447e-269c-48da-8375-dc60ccd1db6e",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "update",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        96
+      ],
+      "id": "3f1b34f3-40ad-46d6-80c6-ff8ba8e449c2",
+      "name": "If update"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_MAPPING_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Adset Sync",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "adset_id": "={{ $json.adset_id }}",
+            "adset_name": "={{ $json.adset_name }}",
+            "campaign_id": "={{ $json.campaign_id }}"
+          },
+          "matchingColumns": [
+            "adset_id"
+          ],
+          "schema": [
+            {
+              "id": "adset_id",
+              "displayName": "adset_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "adset_name",
+              "displayName": "adset_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "campaign_id",
+              "displayName": "campaign_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "platform",
+              "displayName": "platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phase",
+              "displayName": "phase",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phase_changed_date",
+              "displayName": "phase_changed_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8fff2ee1-6d4b-40b5-b96a-4f909c991034",
+      "name": "Update adset row",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_MAPPING_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Adset Sync",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "adset_id": "={{ $json.adset_id }}",
+            "adset_name": "={{ $json.adset_name }}",
+            "campaign_id": "={{ $json.campaign_id }}",
+            "platform": "={{ $json.platform }}",
+            "phase": "",
+            "phase_changed_date": ""
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "adset_id",
+              "displayName": "adset_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "adset_name",
+              "displayName": "adset_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "campaign_id",
+              "displayName": "campaign_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "platform",
+              "displayName": "platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phase",
+              "displayName": "phase",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phase_changed_date",
+              "displayName": "phase_changed_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        192
+      ],
+      "id": "30bd2865-97f8-4cfd-b10e-d420a027b248",
+      "name": "Append adset row",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get adsets from BigQuery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get adsets from BigQuery": {
+      "main": [
+        [
+          {
+            "node": "Get rows from Adset Sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get rows from Adset Sync": {
+      "main": [
+        [
+          {
+            "node": "Compare adsets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare adsets": {
+      "main": [
+        [
+          {
+            "node": "If update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If update": {
+      "main": [
+        [
+          {
+            "node": "Update adset row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append adset row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

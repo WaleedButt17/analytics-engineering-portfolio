@@ -1,0 +1,353 @@
+{
+  "name": "Leadspedia lead sold and lead return webhooks to BigQuery",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-sold",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -208,
+        16
+      ],
+      "id": "dd78e8a5-7aee-455a-9065-98e841825c22",
+      "name": "Lead Sold"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-return",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -208,
+        -176
+      ],
+      "id": "070eff32-fab4-4763-acb6-40696807c480",
+      "name": "Lead Return"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "Leadspedia",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "Lead_Returns",
+          "mode": "id"
+        },
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "event_type",
+              "fieldValue": "={{ $json.body.event_type }}"
+            },
+            {
+              "fieldId": "lead_id",
+              "fieldValue": "={{ $json.body.lead_id }}"
+            },
+            {
+              "fieldId": "advertiser_id",
+              "fieldValue": "={{ $json.body.advertiser_id }}"
+            },
+            {
+              "fieldId": "advertiser_name",
+              "fieldValue": "={{ $json.body.advertiser_name }}"
+            },
+            {
+              "fieldId": "contract_id",
+              "fieldValue": "={{ $json.body.contract_id }}"
+            },
+            {
+              "fieldId": "contract_name",
+              "fieldValue": "={{ $json.body.contract_name }}"
+            },
+            {
+              "fieldId": "return_reason",
+              "fieldValue": "={{ $json.body.return_reason }}"
+            },
+            {
+              "fieldId": "return_notes",
+              "fieldValue": "={{ $json.body.return_notes }}"
+            },
+            {
+              "fieldId": "inserted_at",
+              "fieldValue": "={{new Date().toISOString()}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        48,
+        -176
+      ],
+      "id": "de962e41-be47-4c4d-90e1-c05f957a9741",
+      "name": "Insert into Lead_Returns",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "Leadspedia",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "Events_Leadspedia",
+          "mode": "id"
+        },
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "event_type",
+              "fieldValue": "={{ $json.body.event_type }}"
+            },
+            {
+              "fieldId": "lead_id",
+              "fieldValue": "={{ $json.body.lead_id }}"
+            },
+            {
+              "fieldId": "sold_id",
+              "fieldValue": "={{ $json.body.sold_id }}"
+            },
+            {
+              "fieldId": "offer_id",
+              "fieldValue": "={{ $json.body.offer_id }}"
+            },
+            {
+              "fieldId": "offer_name",
+              "fieldValue": "={{ $json.body.offer_name }}"
+            },
+            {
+              "fieldId": "offer_alt_id",
+              "fieldValue": "={{ $json.body.offer_alt_id }}"
+            },
+            {
+              "fieldId": "vertical_id",
+              "fieldValue": "={{ $json.body.vertical_id }}"
+            },
+            {
+              "fieldId": "vertical_name",
+              "fieldValue": "={{ $json.body.vertical_name }}"
+            },
+            {
+              "fieldId": "affiliate_id",
+              "fieldValue": "={{ $json.body.affiliate_id }}"
+            },
+            {
+              "fieldId": "affiliate_name",
+              "fieldValue": "={{ $json.body.affiliate_name }}"
+            },
+            {
+              "fieldId": "affiliate_alt_id",
+              "fieldValue": "={{ $json.body.affiliate_alt_id }}"
+            },
+            {
+              "fieldId": "advertiser_id",
+              "fieldValue": "={{ $json.body.advertiser_id }}"
+            },
+            {
+              "fieldId": "advertiser_name",
+              "fieldValue": "={{ $json.body.advertiser_name }}"
+            },
+            {
+              "fieldId": "advertiser_alt_id",
+              "fieldValue": "={{ $json.body.advertiser_alt_id }}"
+            },
+            {
+              "fieldId": "campaign_id",
+              "fieldValue": "={{ $json.body.campaign_id }}"
+            },
+            {
+              "fieldId": "campaign_name",
+              "fieldValue": "={{ $json.body.campaign_name }}"
+            },
+            {
+              "fieldId": "campaign_alt_id",
+              "fieldValue": "={{ $json.body.campaign_alt_id }}"
+            },
+            {
+              "fieldId": "contract_id",
+              "fieldValue": "={{ $json.body.contract_id }}"
+            },
+            {
+              "fieldId": "contract_name",
+              "fieldValue": "={{ $json.body.contract_name }}"
+            },
+            {
+              "fieldId": "contract_alt_id",
+              "fieldValue": "={{ $json.body.contract_alt_id }}"
+            },
+            {
+              "fieldId": "payout",
+              "fieldValue": "={{ $json.body.payout }}"
+            },
+            {
+              "fieldId": "sold_price",
+              "fieldValue": "={{ $json.body.sold_price }}"
+            },
+            {
+              "fieldId": "revenue",
+              "fieldValue": "={{ $json.body.revenue }}"
+            },
+            {
+              "fieldId": "sold",
+              "fieldValue": "={{ $json.body.sold }}"
+            },
+            {
+              "fieldId": "scrubbed",
+              "fieldValue": "={{ $json.body.scrubbed }}"
+            },
+            {
+              "fieldId": "paid",
+              "fieldValue": "={{ $json.body.paid }}"
+            },
+            {
+              "fieldId": "sellable",
+              "fieldValue": "={{ $json.body.sellable }}"
+            },
+            {
+              "fieldId": "trash",
+              "fieldValue": "={{ $json.body.trash }}"
+            },
+            {
+              "fieldId": "post_response",
+              "fieldValue": "={{ $json.body.post_response }}"
+            },
+            {
+              "fieldId": "s1",
+              "fieldValue": "={{ $json.body.s1 }}"
+            },
+            {
+              "fieldId": "s2",
+              "fieldValue": "={{ $json.body.s2 }}"
+            },
+            {
+              "fieldId": "s3",
+              "fieldValue": "={{ $json.body.s3 }}"
+            },
+            {
+              "fieldId": "s4",
+              "fieldValue": "={{ $json.body.s4 }}"
+            },
+            {
+              "fieldId": "s5",
+              "fieldValue": "={{ $json.body.s5 }}"
+            },
+            {
+              "fieldId": "first_name",
+              "fieldValue": "={{ $json.body.first_name }}"
+            },
+            {
+              "fieldId": "last_name",
+              "fieldValue": "={{ $json.body.last_name }}"
+            },
+            {
+              "fieldId": "state",
+              "fieldValue": "={{ $json.body.state }}"
+            },
+            {
+              "fieldId": "inserted_at",
+              "fieldValue": "={{new Date().toISOString()}}"
+            },
+            {
+              "fieldId": "utm_source",
+              "fieldValue": "={{ $json.body.utm_source }}"
+            },
+            {
+              "fieldId": "utm_medium",
+              "fieldValue": "={{ $json.body.utm_medium }}"
+            },
+            {
+              "fieldId": "utm_campaign",
+              "fieldValue": "={{ $json.body.utm_campaign }}"
+            },
+            {
+              "fieldId": "utm_source_custom",
+              "fieldValue": "={{ $json.body.utm_source_custom }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        16
+      ],
+      "id": "b0f4abeb-e3be-463f-b3e9-4b4e63ddd234",
+      "name": "Insert into Events_Leadspedia",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Lead Sold": {
+      "main": [
+        [
+          {
+            "node": "Insert into Events_Leadspedia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Return": {
+      "main": [
+        [
+          {
+            "node": "Insert into Lead_Returns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

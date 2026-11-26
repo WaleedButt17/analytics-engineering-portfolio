@@ -1,0 +1,187 @@
+{
+  "name": "Daily Spend Check (alert if a platform's spend did not land)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "61bf2a55-7347-4f2c-8d56-2f22643a9ebd",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        192
+      ],
+      "id": "57e1b7b5-78c5-4553-9439-a94641c9fc5b",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "sqlQuery": "WITH windsor AS (\n  SELECT platform, date, SUM(spend) AS spend\n  FROM `YOUR_GCP_PROJECT_ID`.staging.v_raw_spend\n  WHERE platform IN ('meta','google','microsoft','tiktok','taboola')\n    AND date BETWEEN CURRENT_DATE() - 15 AND CURRENT_DATE() - 1\n  GROUP BY 1, 2\n),\nsummary AS (\n  SELECT\n    platform,\n    SUM(IF(date = CURRENT_DATE() - 1, spend, 0)) AS spend_checked_day,\n    COUNTIF(date < CURRENT_DATE() - 1 AND spend > 0) AS days_with_spend\n  FROM windsor\n  GROUP BY 1\n),\nmissing AS (\n  SELECT platform\n  FROM summary\n  WHERE spend_checked_day = 0\n    AND days_with_spend >= 10\n)\nSELECT\n  COUNT(*) AS missing_count,\n  IFNULL(STRING_AGG(platform, ', ' ORDER BY platform), '') AS missing_platforms,\n  FORMAT_DATE('%Y-%m-%d', CURRENT_DATE() - 1) AS check_date\nFROM missing",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        112
+      ],
+      "id": "ea778db3-5838-48a4-ba03-4f09b82bde32",
+      "name": "Check Spend Landed",
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "16a52eb3-2c3d-4ad0-82a3-a610db2f2982",
+              "leftValue": "={{ $json.missing_count }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        448,
+        112
+      ],
+      "id": "e30bdf65-59d8-487d-8bb8-f0f3f559173d",
+      "name": "Anything Missing?"
+    },
+    {
+      "parameters": {
+        "sendTo": "alerts@example.com",
+        "subject": "=Spend data missing for {{ $json.check_date }}",
+        "message": "=<h2>Spend data did not arrive</h2>\n<p>No spend has landed in BigQuery for <strong>{{ $json.check_date }}</strong> on the following platforms:</p>\n<p style=\"font-size:16px\"><strong>{{ $json.missing_platforms }}</strong></p>\n<p>These platforms have been reporting spend normally over the last two weeks, so this most likely means the Windsor pull did not complete.</p>\n<p>The dashboards will be missing this spend until a backfill is run.</p>\n<hr>\n<p style=\"color:#888;font-size:12px\">Automated check from n8n, run at {{ $now.toFormat('yyyy-MM-dd HH:mm') }} UTC.</p>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        32
+      ],
+      "id": "636cd099-6a08-4fc0-8fe5-d10bfac82a9f",
+      "name": "Send Alert",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        672,
+        208
+      ],
+      "id": "60d9a6c2-d670-4ebf-a016-d680aff28b26",
+      "name": "All Good"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Check Spend Landed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Spend Landed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Spend Landed": {
+      "main": [
+        [
+          {
+            "node": "Anything Missing?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anything Missing?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "All Good",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

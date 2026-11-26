@@ -1,0 +1,336 @@
+{
+  "name": "Nextdoor Ads daily spend (loop per campaign)",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -176
+      ],
+      "id": "bd1d5c4b-0963-45c6-91eb-c85a7268fa18",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -240,
+        16
+      ],
+      "id": "70b25eab-6b8f-49a1-883a-1bc15fd145a5",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const yesterday = new Date();\nyesterday.setDate(yesterday.getDate() - 1);\nconst dateStr = yesterday.toISOString().split('T')[0];\n\nreturn [{ json: { date: dateStr } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        -80
+      ],
+      "id": "f1f0534d-de1a-4a54-8136-eec32de68b84",
+      "name": "Yesterday Calculation"
+    },
+    {
+      "parameters": {
+        "url": "https://ads.nextdoor.com/api/v3/advertisers/NEXTDOOR_ADVERTISER_ID/campaigns?pageSize=500",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        -80
+      ],
+      "id": "9306e407-923e-401e-98c8-f62ca5fc0d37",
+      "name": "GET Campaigns",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "NEXTDOOR_CREDENTIAL_ID",
+          "name": "Nextdoor Ads API token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst date = $('Yesterday Calculation').first().json.date;\n\nconst data = Array.isArray(response) ? response[0] : response;\nconst campaigns = data.campaigns;\n\nreturn campaigns.map(c => ({\n  json: {\n    campaign_id: c.data.id,\n    campaign_name: c.data.name,\n    date: date\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -80
+      ],
+      "id": "110a431b-c84e-4e4f-a9d2-99ef615bb03b",
+      "name": "Extract Campaigns"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        656,
+        -80
+      ],
+      "id": "73083915-4c9b-498e-869f-04e93f4e8ecb",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "url": "=https://ads.nextdoor.com/api/v3/advertisers/NEXTDOOR_ADVERTISER_ID/campaigns/{{ $json.campaign_id }}/stats?startTime={{ $json.date }}&endTime={{ $json.date }}",
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        880,
+        -80
+      ],
+      "id": "7b8eda11-38d4-4aee-ab2c-1eff6aa07635",
+      "name": "HTTP Request Stats",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "NEXTDOOR_CREDENTIAL_ID",
+          "name": "Nextdoor Ads API token"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const statsResponse = $input.first().json;\nconst stats = Array.isArray(statsResponse) ? statsResponse[0] : statsResponse;\nconst campaignId = $('Loop Over Items').first().json.campaign_id;\nconst campaignName = $('Loop Over Items').first().json.campaign_name;\nconst date = $('Loop Over Items').first().json.date;\n\nconst parseAmount = (str) => {\n  if (!str) return 0;\n  return parseFloat(str.replace('USD ', '').trim());\n};\n\nreturn [{\n  json: {\n    date: date,\n    platform: 'nextdoor',\n    campaign_id: campaignId,\n    campaign_name: campaignName,\n    spend: parseAmount(stats.billable_spend),\n    impressions: stats.impressions || 0,\n    clicks: stats.clicks || 0,\n    conversions: stats.total_conversions || 0,\n    ctr: stats.ctr || 0,\n    cpc: parseAmount(stats.cpc),\n    cpm: parseAmount(stats.cpm),\n    account_id: 'NEXTDOOR_ADVERTISER_ID',\n    account_name: 'client ad account',\n    inserted_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        -80
+      ],
+      "id": "b98cc8b8-ae2f-46d9-97b8-90f0c603008d",
+      "name": "Transform"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT_ID",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "n8n",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "Nextdoor",
+          "mode": "id"
+        },
+        "dataMode": "define",
+        "fieldsUi": {
+          "values": [
+            {
+              "fieldId": "date",
+              "fieldValue": "={{ $json.date }}"
+            },
+            {
+              "fieldId": "platform",
+              "fieldValue": "={{ $json.platform }}"
+            },
+            {
+              "fieldId": "campaign_id",
+              "fieldValue": "={{ $json.campaign_id }}"
+            },
+            {
+              "fieldId": "campaign_name",
+              "fieldValue": "={{ $json.campaign_name }}"
+            },
+            {
+              "fieldId": "spend",
+              "fieldValue": "={{ $json.spend }}"
+            },
+            {
+              "fieldId": "impressions",
+              "fieldValue": "={{ $json.impressions }}"
+            },
+            {
+              "fieldId": "clicks",
+              "fieldValue": "={{ $json.clicks }}"
+            },
+            {
+              "fieldId": "conversions",
+              "fieldValue": "={{ $json.conversions }}"
+            },
+            {
+              "fieldId": "ctr",
+              "fieldValue": "={{ $json.ctr }}"
+            },
+            {
+              "fieldId": "cpc",
+              "fieldValue": "={{ $json.cpc }}"
+            },
+            {
+              "fieldId": "cpm",
+              "fieldValue": "={{ $json.cpm }}"
+            },
+            {
+              "fieldId": "account_id",
+              "fieldValue": "={{ $json.account_id }}"
+            },
+            {
+              "fieldId": "account_name",
+              "fieldValue": "={{ $json.account_name }}"
+            },
+            {
+              "fieldId": "inserted_at",
+              "fieldValue": "={{ $json.inserted_at }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "position": [
+        1328,
+        -80
+      ],
+      "id": "7b48def7-f3ea-48ed-91a0-bc1ad1b10007",
+      "name": "Insert rows in a table",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "googleApi": {
+          "id": "GOOGLE_SERVICE_ACCOUNT_CREDENTIAL_ID",
+          "name": "Google service account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Yesterday Calculation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Yesterday Calculation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Yesterday Calculation": {
+      "main": [
+        [
+          {
+            "node": "GET Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Extract Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Stats": {
+      "main": [
+        [
+          {
+            "node": "Transform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform": {
+      "main": [
+        [
+          {
+            "node": "Insert rows in a table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert rows in a table": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

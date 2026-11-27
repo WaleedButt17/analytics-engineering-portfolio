@@ -10,11 +10,11 @@ A direct to consumer health and wellness brand sells subscriptions across 6 onli
 - How does ad spend turn into subscribers and revenue?
 - What is a subscriber worth compared with a one time buyer?
 
-I built daily n8n pipelines into BigQuery, a raw, staging and mart model with 14 marts, and a 10 page Looker Studio report.
+I built daily n8n pipelines into BigQuery, a raw, staging and mart model with 14 marts, and an 11 page Looker Studio report.
 
 > Store names, domains, account IDs and credentials are removed. Stores appear as `store_1` to `store_6`. The workflows are the real ones, rebuilt with placeholders.
 >
-> Because of the client's security restrictions I cannot share the SQL or the rest of the dashboard pages. The workflows, the model description and the screenshots below show what was built.
+> Because of the client's security restrictions I cannot share the SQL. The workflows, the model description and the dashboard pages below show what was built. The brand name is removed from every page and Amazon campaign names are blurred.
 
 ## How it works
 
@@ -28,7 +28,7 @@ Loop API (6 stores)   CheckoutChamp API   Shopify (6 stores)   Meta Ads   Frankf
                           staging.*  deduplication, normalisation, status mapping
                           marts.*    14 reporting marts
                                           |
-                                  Looker Studio (10 pages)
+                                  Looker Studio (11 pages)
 ```
 
 ## n8n workflows
@@ -73,12 +73,32 @@ More screenshots: [Loop snapshot](n8n/n8n_loop_subscription_snapshot.png), [exch
 
 ## Dashboard
 
-The report has 10 pages (subscriptions, subscriber analytics, funnel, cohort retention, LTV, unit economics, products, UTM attribution, Amazon, payment health). A few of them, brand name removed:
+11 pages in Looker Studio, every one filtered by date, and most by country, store and platform (Loop, CheckoutChamp or combined).
+
+| Page | What it shows |
+|---|---|
+| Overview | The full path in one place: Meta ad exposure, clicks and landing, on site engagement, revenue (gross, net, refunds, discounts, taxes) and purchases (orders, CVR, AOV, CPA, ROAS) |
+| Funnel | Each step as its own funnel: impressions to clicks, clicks to sessions, sessions to add to cart, add to cart to checkout, checkout to purchase |
+| Customer Acquisition | New vs returning customers, orders and revenue, new customer rate and nCAC over time |
+| Geographic Breakdown | Revenue, orders, spend, ROAS, CPA, CVR and add to cart rate for every country |
+| Subscriptions | Combined MRR including payment recovery, take rate, forecast 30 day orders and revenue, first attempt payment success and dunning recovery |
+| Subscriber Analytics | Active, new, paused and churned subscribers, churn rate and zero day churn |
+| Cohort Retention | Monthly cohorts M0 to M11, by revenue and by subscribers |
+| LTV Analysis | LTV at D30, D60, D90, D120 and overall, by cohort, and subscriber vs one time buyer |
+| Amazon Traffic and Orders | Sessions, units, ordered and shipped sales, Buy Box %, unit session %, refund rate |
+| Amazon Ads | Spend, sales, ROAS and ACOS per campaign |
+| Unit Economics | Monthly nCAC, LTV:CAC at each window and CAC payback in months |
+
+![Report pages](screenshots/pages/00_report_pages.png)
 
 | | |
 |---|---|
-| ![Subscriptions overview](screenshots/01_subscriptions_overview.png) | ![MRR and payment health](screenshots/02_mrr_and_payment_health.png) |
-| ![Subscriber analytics, month](screenshots/03_subscriber_analytics_month.png) | ![Subscriber analytics, week](screenshots/04_subscriber_analytics_week.png) |
+| ![Overview](screenshots/pages/01_overview.png) | ![Funnel](screenshots/pages/02_funnel.png) |
+| ![Customer acquisition](screenshots/pages/03_customer_acquisition.png) | ![Geographic breakdown](screenshots/pages/04_geographic_breakdown.png) |
+| ![Subscriptions, MRR and payment health](screenshots/pages/05_subscriptions_mrr_payment_health.png) | ![Subscriber analytics](screenshots/pages/06_subscriber_analytics.png) |
+| ![Cohort retention](screenshots/pages/07_cohort_retention.png) | ![LTV analysis](screenshots/pages/08_ltv_analysis.png) |
+| ![Amazon traffic and orders](screenshots/pages/09_amazon_traffic_orders.png) | ![Amazon ads](screenshots/pages/10_amazon_ads.png) |
+| ![Unit economics](screenshots/pages/11_unit_economics.png) | |
 
 ## Problems found and fixed
 

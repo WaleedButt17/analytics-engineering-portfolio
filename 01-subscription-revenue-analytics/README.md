@@ -103,8 +103,6 @@ All SQL is in [`queries/`](queries/): 11 staging views, 14 mart views and the sc
 | Amazon Ads | Spend, sales, ROAS and ACOS per campaign |
 | Unit Economics | Monthly nCAC, LTV:CAC at each window and CAC payback in months |
 
-![Report pages](screenshots/pages/00_report_pages.png)
-
 | | |
 |---|---|
 | ![Overview](screenshots/pages/01_overview.png) | ![Funnel](screenshots/pages/02_funnel.png) |

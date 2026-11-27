@@ -103,14 +103,49 @@ All SQL is in [`queries/`](queries/): 11 staging views, 14 mart views and the sc
 | Amazon Ads | Spend, sales, ROAS and ACOS per campaign |
 | Unit Economics | Monthly nCAC, LTV:CAC at each window and CAC payback in months |
 
-| | |
-|---|---|
-| ![Overview](screenshots/pages/01_overview.png) | ![Funnel](screenshots/pages/02_funnel.png) |
-| ![Customer acquisition](screenshots/pages/03_customer_acquisition.png) | ![Geographic breakdown](screenshots/pages/04_geographic_breakdown.png) |
-| ![Subscriptions, MRR and payment health](screenshots/pages/05_subscriptions_mrr_payment_health.png) | ![Subscriber analytics](screenshots/pages/06_subscriber_analytics.png) |
-| ![Cohort retention](screenshots/pages/07_cohort_retention.png) | ![LTV analysis](screenshots/pages/08_ltv_analysis.png) |
-| ![Amazon traffic and orders](screenshots/pages/09_amazon_traffic_orders.png) | ![Amazon ads](screenshots/pages/10_amazon_ads.png) |
-| ![Unit economics](screenshots/pages/11_unit_economics.png) | |
+**Overview**
+
+![Overview](screenshots/pages/01_overview.png)
+
+**Funnel**
+
+![Funnel](screenshots/pages/02_funnel.png)
+
+**Customer Acquisition**
+
+![Customer Acquisition](screenshots/pages/03_customer_acquisition.png)
+
+**Geographic Breakdown**
+
+![Geographic Breakdown](screenshots/pages/04_geographic_breakdown.png)
+
+**Subscriptions (MRR and payment health)**
+
+![Subscriptions (MRR and payment health)](screenshots/pages/05_subscriptions_mrr_payment_health.png)
+
+**Subscriber Analytics**
+
+![Subscriber Analytics](screenshots/pages/06_subscriber_analytics.png)
+
+**Cohort Retention**
+
+![Cohort Retention](screenshots/pages/07_cohort_retention.png)
+
+**LTV Analysis**
+
+![LTV Analysis](screenshots/pages/08_ltv_analysis.png)
+
+**Amazon Traffic and Orders**
+
+![Amazon Traffic and Orders](screenshots/pages/09_amazon_traffic_orders.png)
+
+**Amazon Ads**
+
+![Amazon Ads](screenshots/pages/10_amazon_ads.png)
+
+**Unit Economics**
+
+![Unit Economics](screenshots/pages/11_unit_economics.png)
 
 ## Problems found and fixed
 

@@ -1,3 +1,13 @@
+CREATE TABLE IF NOT EXISTS `your-project.raw.amazon_ads_report_queue`
+(
+  report_date DATE,
+  report_id STRING,
+  status STRING,
+  download_url STRING,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS `your-project.raw.country_codes`
 (
   code STRING,

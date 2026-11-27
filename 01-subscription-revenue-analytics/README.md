@@ -1,6 +1,6 @@
 # Subscription Revenue Analytics
 
-**Stack:** n8n Cloud, Google BigQuery, Looker Studio, Loop Subscriptions API, CheckoutChamp API, Shopify (GraphQL and ShopifyQL), Meta Ads, Frankfurter FX API
+**Stack:** n8n Cloud, Google BigQuery, Looker Studio, Loop Subscriptions API, CheckoutChamp API, Shopify (GraphQL and ShopifyQL), Meta Ads, Frankfurter FX API, Amazon Selling Partner API, Amazon Ads API, Python
 
 A direct to consumer health and wellness brand sells subscriptions across 6 online stores on two platforms: **Loop** (Shopify based subscriptions) and **CheckoutChamp** (its own checkout and subscription platform), in the US, UK, EU, Australia and Canada. There was no single view of the business. Basic questions had no answer:
 
@@ -10,7 +10,7 @@ A direct to consumer health and wellness brand sells subscriptions across 6 onli
 - How does ad spend turn into subscribers and revenue?
 - What is a subscriber worth compared with a one time buyer?
 
-I built daily n8n pipelines into BigQuery, a raw, staging and mart model with 14 marts, and an 11 page Looker Studio report.
+I built daily n8n pipelines and Python jobs for Amazon into BigQuery, a raw, staging and mart model with 14 marts, and an 11 page Looker Studio report.
 
 > Store names, domains, account IDs and credentials are removed. Stores appear as `store_1` to `store_6`. The workflows are the real ones, rebuilt with placeholders.
 >
@@ -22,6 +22,8 @@ I built daily n8n pipelines into BigQuery, a raw, staging and mart model with 14
 Loop API (6 stores)   CheckoutChamp API   Shopify (6 stores)   Meta Ads   Frankfurter FX
         |                    |                   |                |            |
         +--------------------+------ n8n Cloud, every night -------+------------+
+                                          |
+Amazon SP-API, Amazon Ads API ---- Python jobs, daily ----+
                                           |
                                    Google BigQuery
                           raw.*      one table per source, ingested_at on every row
@@ -48,9 +50,19 @@ All in [`n8n/`](n8n/) (import the JSON to see every node), with a screenshot of 
 
 More screenshots: [Loop snapshot](n8n/n8n_loop_subscription_snapshot.png), [exchange rates](n8n/n8n_exchange_rates.png), [Shopify orders](n8n/n8n_shopify_orders_daily.png), [Meta ads](n8n/n8n_meta_ads_daily.png).
 
+## Amazon jobs (Python)
+
+All in [`python/`](python/). Credentials come from environment variables; none are in the code.
+
+| Script | What it does |
+|---|---|
+| [`amazon_sales_traffic_daily.py`](python/amazon_sales_traffic_daily.py) | Requests the Selling Partner API Sales and Traffic report for yesterday, polls until it is done, downloads and unzips it, and loads ordered sales, units, refunds, shipped sales, page views, sessions and Buy Box % into `raw.daily_amazon_traffic` |
+| [`amazon_sessions_daily.py`](python/amazon_sessions_daily.py) | The same report for two days ago, because Amazon sessions are only final after about 48 hours. Adds browser and mobile app sessions and page views. The staging view keeps the newest load per date, so this later, complete row replaces the early one |
+| [`amazon_ads_download_insert.py`](python/amazon_ads_download_insert.py) | Amazon Ads reports are asynchronous, so a report request and a status check run earlier and write to a queue table (`raw.amazon_ads_report_queue`). This job skips the day if it is already loaded, takes the latest READY report from the queue, fetches a fresh download link if the old one has expired, loads campaign spend, clicks, purchases and sales at 1, 7 and 14 day attribution into `raw.daily_amazon_ads`, then marks the report DONE |
+
 ## BigQuery model
 
-All SQL is in [`queries/`](queries/): 11 staging views, 14 mart views and the schema of the 21 raw tables they read ([`raw_tables.sql`](queries/raw_tables.sql)).
+All SQL is in [`queries/`](queries/): 11 staging views, 14 mart views and the schema of the 22 raw tables the views and jobs use ([`raw_tables.sql`](queries/raw_tables.sql)).
 
 **Raw:** one table per source (`daily_loop_subscriptions`, `daily_cc_purchases`, `historical_cc_purchases`, `daily_cc_orders`, `daily_cc_transactions`, `daily_exchange_rates`, `daily_shopify_sessions`, `daily_shopify_orders`, `daily_meta` and others). Every row carries `ingested_at`, so any number can be traced to the load it came from.
 

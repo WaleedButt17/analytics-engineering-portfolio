@@ -2,7 +2,7 @@
 
 Waleed Butt. I build data pipelines and reporting for ecommerce, subscription and lead generation businesses: n8n and APIs into BigQuery, SQL views that hold the business logic, and Looker Studio on top. Most of my work is making sure the numbers match the source system.
 
-**Tools:** BigQuery (SQL), n8n, Looker Studio, Google Sheets and Apps Script, Windsor.ai, REST APIs (Stripe, Shopify, Meta, Google Ads and others)
+**Tools:** BigQuery (SQL), n8n, Looker Studio, Power BI (DAX, data modelling), Google Sheets and Apps Script, Windsor.ai, REST APIs (Stripe, Shopify, Meta, Google Ads and others)
 
 ## Projects
 
@@ -15,6 +15,8 @@ Waleed Butt. I build data pipelines and reporting for ecommerce, subscription an
 | [Mobile App Analytics](05-mobile-app-analytics/) | GA4 app export and 3 ad platforms in BigQuery; 24 views from ad spend to install, signup, engagement, creator activity and paid orders; retention rebuilt after finding background push notifications counted as returns; 12 section Looker Studio report |
 | [Multi-Brand Marketing Data Layer (Healthcare)](06-multi-brand-marketing-data-layer/) | Audit and rebuild of a Windsor.ai to BigQuery layer for 8 brands of a large healthcare company: staging, campaign and UTM mapping, deduplicated reach, attribution, rollups and tables for an AI reporting agent, with every brand reconciled against the source; 50 SQL files and Apps Script reports |
 | [Telecom Sales and Marketing Data Layer](07-telecom-sales-and-marketing-data-layer/) | Salesforce sales from Google Sheets, ad spend and GA4 in one BigQuery model, with weekly, biweekly and monthly results by market and nationally, before and after QC against the old model, and tables for an AI reporting agent |
+| [Project Management and Resource Allocation (Power BI)](08-powerbi-project-resource-analytics/) | Power BI on Jira issues and worklogs (JSON refreshed every 4 hours): Epic to Task to Sub-task star model, team capacity, planned vs logged hours, leave, project and resource Gantt charts, plan vs actual status |
+| [Customer Service Order Analytics on SAP Data (Power BI)](09-powerbi-order-touches-sap/) | Power BI on SAP order, delivery and order touch extracts (VBAK, LIKP, ZVTOUCH) loaded from SharePoint: touches per order, touchless and automated orders, automation glidepath, year on year and regional views |
 
 
 

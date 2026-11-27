@@ -8,7 +8,7 @@ Waleed Butt. I build data pipelines and reporting for ecommerce, subscription an
 
 | Project | What it shows |
 |---|---|
-| [Subscription Revenue Analytics](01-subscription-revenue-analytics/) | 6 stores on Loop and CheckoutChamp plus Shopify, Meta and daily FX loaded by n8n into BigQuery; 14 marts for MRR, churn, cohorts, LTV and payment health; 11 page Looker Studio report including Amazon; MRR fixed from about $750K (wrong) to $1.355M (verified) |
+| [Subscription Revenue Analytics](01-subscription-revenue-analytics/) | 6 stores on Loop and CheckoutChamp plus Shopify, Meta and daily FX loaded by n8n into BigQuery; 11 staging and 14 mart views (SQL included) for MRR, churn, cohorts, LTV and payment health; 11 page Looker Studio report including Amazon; MRR fixed from about $750K (wrong) to $1.355M (verified) |
 | [Lead Generation Reporting System](02-lead-gen-reporting/) | 7 ad platforms (Windsor plus custom n8n API flows) and real time lead webhooks into BigQuery; 21 views for product mapping, CPL, research spend and a full financial model; 13 page Looker Studio report; lead counts matched to the source every month |
 | [Stripe Revenue Analytics](03-stripe-revenue-analytics/) | n8n loads 4 Stripe endpoints into BigQuery every night; 18 views for true net revenue after fees, refunds and disputes, cohorts, LTV and refund patterns; 10 page Looker Studio report |
 | [Ecommerce Automation and Profit Dashboard](04-ecommerce-profit-dashboard/) | Apps Script scoring engine that ranks a 2,900 product supplier catalog, Make flows to list and delist on Shopify, contribution margin per order line in BigQuery, and a profit dashboard that caught products sold at a loss |

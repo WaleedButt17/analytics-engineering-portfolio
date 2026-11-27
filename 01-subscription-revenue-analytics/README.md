@@ -14,7 +14,7 @@ I built daily n8n pipelines into BigQuery, a raw, staging and mart model with 14
 
 > Store names, domains, account IDs and credentials are removed. Stores appear as `store_1` to `store_6`. The workflows are the real ones, rebuilt with placeholders.
 >
-> Because of the client's security restrictions I cannot share the SQL. The workflows, the model description and the dashboard pages below show what was built. The brand name is removed from every page and Amazon campaign names are blurred.
+> The SQL in [`queries/`](queries/) is the real production SQL with the project ID replaced by `your-project` and store domains replaced by placeholders. The brand name is removed from every dashboard page and Amazon campaign names are blurred.
 
 ## How it works
 
@@ -49,6 +49,8 @@ All in [`n8n/`](n8n/) (import the JSON to see every node), with a screenshot of 
 More screenshots: [Loop snapshot](n8n/n8n_loop_subscription_snapshot.png), [exchange rates](n8n/n8n_exchange_rates.png), [Shopify orders](n8n/n8n_shopify_orders_daily.png), [Meta ads](n8n/n8n_meta_ads_daily.png).
 
 ## BigQuery model
+
+All SQL is in [`queries/`](queries/): 11 staging views, 14 mart views and the schema of the 21 raw tables they read ([`raw_tables.sql`](queries/raw_tables.sql)).
 
 **Raw:** one table per source (`daily_loop_subscriptions`, `daily_cc_purchases`, `historical_cc_purchases`, `daily_cc_orders`, `daily_cc_transactions`, `daily_exchange_rates`, `daily_shopify_sessions`, `daily_shopify_orders`, `daily_meta` and others). Every row carries `ingested_at`, so any number can be traced to the load it came from.
 
